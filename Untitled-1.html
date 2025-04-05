@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>왕희TT - Toilet Talk</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Noto Sans KR', sans-serif;
+        }
+
+        body {
+            background-color: #f5f5f5;
+            color: #333;
+            max-width: 414px;
+            margin: 0 auto;
+            height: 100vh;
+            position: relative;
+        }
+
+        .container {
+            background-color: white;
+            height: 100%;
+            position: relative;
+            overflow-y: auto;
+        }
+
+        /* 헤더 스타일 */
+        header {
+            background-color: #4361ee;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        /* 탭 메뉴 */
+        .tabs {
+            display: flex;
+            background-color: #fff;
+            border-bottom: 1px solid #ddd;
+            position: sticky;
+            top: 51px;
+            z-index: 99;
+        }
+
+        .tab {
+            flex: 1;
+            text-align: center;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            border-bottom: 3px solid #4361ee;
+            color: #4361ee;
+            font-weight: bold;
+        }
+
+        /* 메인 콘텐츠 영역 */
+        .content {
+            padding: 15px;
+        }
+
+        /* 지도 뷰 */
+        .map-view {
+            height: calc(100vh - 180px);
+            background-color: #eef2ff;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .map-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        .toilet-marker {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .toilet-marker.clean {
+            background-color: #4ade80;
+        }
+
+        .toilet-marker.normal {
+            background-color: #facc15;
+        }
+
+        .toilet-marker.dirty {
+            background-color: #f87171;
+        }
+
+        /* 목록 뷰 */
+        .list-view {
+            display: none;
+            height: calc(100vh - 180px);
+            overflow-y: auto;
+        }
+
+        .toilet-card {
+            background-color: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .toilet-name {
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        .status-label {
+            color: #666;
+        }
+
+        .status-value {
+            font-weight: 500;
+        }
+
+        .status-value.good {
+            color: #4ade80;
+        }
+
+        .status-value.normal {
+            color: #facc15;
+        }
+
+        .status-value.bad {
+            color: #f87171;
+        }
+
+        .timestamp {
+            font-size: 12px;
+            color: #999;
+            text-align: right;
+            margin-top: 5px;
+        }
+
+        /* 하단 FAB */
+        .fab {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background-color: #4361ee;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            transition: all 0.3s;
+            z-index: 100;
+            cursor: pointer;
+        }
+
+        .fab:active {
+            transform: scale(0.95);
+        }
+
+        .fab-icon {
+            color: white;
+            font-size: 24px;
+        }
+
+        /* 모달 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 370px;
+            padding: 20px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .status-section {
+            margin-bottom: 20px;
+        }
+
+        .status-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .status-options {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 5px;
+        }
+
+        .status-option {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .status-option.selected {
+            border-color: #4361ee;
+            background-color: #eef2ff;
+            color: #4361ee;
+            font-weight: bold;
+        }
+
+        .submit-btn {
+            background-color: #4361ee;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 12px;
+            width: 100%;
+            font-weight: bold;
+            margin-top: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .submit-btn:active {
+            transform: scale(0.98);
+            background-color: #3a56d4;
+        }
+
+        /* 화장실 상세 모달 */
+        .detail-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .detail-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .detail-title {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .history-item {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .history-title {
+            font-weight: bold;
+            margin-top: 10px;
+            margin-bottom: 5px;
+        }
+
+        .report-btn {
+            background-color: #4361ee;
+            color: white;
+            border: none;
+            border-radius:.10px;
+            padding: 12px;
+            width: 100%;
+            font-weight: bold;
+            margin-top: 15px;
+            cursor: pointer;
+        }
+
+        /* 하단 탭바 */
+        .bottom-bar {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            max-width: 414px;
+            background-color: white;
+            display: flex;
+            border-top: 1px solid #eee;
+            padding: 10px 0;
+            z-index: 50;
+        }
+
+        .bottom-tab {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #777;
+            cursor: pointer;
+        }
+
+        .bottom-tab.active {
+            color: #4361ee;
+            font-weight: bold;
+        }
+
+        .tab-icon {
+            font-size: 18px;
+            margin-bottom: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-title">왕희TT - Toilet Talk</div>
+        </header>
+
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('map')">지도 보기</div>
+            <div class="tab" onclick="switchTab('list')">목록 보기</div>
+        </div>
+
+        <div class="content">
+            <!-- 지도 뷰 -->
+            <div class="map-view" id="mapView">
+                <div class="map-container">
+                    <!-- 화장실 마커들 -->
+                    <div class="toilet-marker clean" style="top: 25%; left: 30%;" onclick="openDetailModal('급식실층 남자화장실1')">급1</div>
+                    <div class="toilet-marker normal" style="top: 25%; left: 70%;" onclick="openDetailModal('급식실층 남자화장실2')">급2</div>
+                    <div class="toilet-marker dirty" style="top: 50%; left: 30%;" onclick="openDetailModal('1학년층 남자화장실')">1남</div>
+                    <div class="toilet-marker normal" style="top: 50%; left: 70%;" onclick="openDetailModal('보건실층 남자화장실')">0</div>
+                    <div class="toilet-marker clean" style="top: 75%; left: 30%;" onclick="openDetailModal('자습실층 남자화장실1')">자남1</div>
+                    <div class="toilet-marker clean" style="top: 75%; left: 70%;" onclick="openDetailModal('자습실층 남자화장실2')">자남2</div>
+                </div>
+            </div>
+
+            <!-- 목록 뷰 -->
+            <div class="list-view" id="listView">
+                <!-- 화장실 카드들 -->
+                <div class="toilet-card" onclick="openDetailModal('급식실층 남자화장실1')">
+                    <div class="toilet-name">급식실층 남자화장실1</div>
+                    <div class="status-row">
+                        <span class="status-label">청결</span>
+                        <span class="status-value good">깨끗함</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">혼잡도</span>
+                        <span class="status-value good">한산</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">비품 상태</span>
+                        <span class="status-value good">충분</span>
+                    </div>
+                    <div class="timestamp">5분 전 업데이트</div>
+                </div>
+
+                <div class="toilet-card" onclick="openDetailModal('급식실층 남자화장실2')">
+                    <div class="toilet-name">급식실층 남자화장실2</div>
+                    <div class="status-row">
+                        <span class="status-label">청결</span>
+                        <span class="status-value normal">보통</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">혼잡도</span>
+                        <span class="status-value normal">보통</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">비품 상태</span>
+                        <span class="status-value normal">보통</span>
+                    </div>
+                    <div class="timestamp">10분 전 업데이트</div>
+                </div>
+
+                <div class="toilet-card" onclick="openDetailModal('1학년층 남자화장실')">
+                    <div class="toilet-name">1학년층 남자화장실</div>
+                    <div class="status-row">
+                        <span class="status-label">청결</span>
+                        <span class="status-value bad">더러움</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">혼잡도</span>
+                        <span class="status-value bad">혼잡</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">비품 상태</span>
+                        <span class="status-value bad">없음</span>
+                    </div>
+                    <div class="timestamp">3분 전 업데이트</div>
+                </div>
+
+                <div class="toilet-card" onclick="openDetailModal('보건실층 남자화장실')">
+                    <div class="toilet-name">보건실층 남자화장실</div>
+                    <div class="status-row">
+                        <span class="status-label">청결</span>
+                        <span class="status-value normal">보통</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">혼잡도</span>
+                        <span class="status-value normal">보통</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">비품 상태</span>
+                        <span class="status-value good">충분</span>
+                    </div>
+                    <div class="timestamp">15분 전 업데이트</div>
+                </div>
+
+                <div class="toilet-card" onclick="openDetailModal('자습실층 남자화장실1')">
+                    <div class="toilet-name">자습실층 남자화장실1</div>
+                    <div class="status-row">
+                        <span class="status-label">청결</span>
+                        <span class="status-value good">깨끗함</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">혼잡도</span>
+                        <span class="status-value good">한산</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">비품 상태</span>
+                        <span class="status-value good">충분</span>
+                    </div>
+                    <div class="timestamp">7분 전 업데이트</div>
+                </div>
+
+                <div class="toilet-card" onclick="openDetailModal('자습실층 남자화장실2')">
+                    <div class="toilet-name">자습실층 남자화장실2</div>
+                    <div class="status-row">
+                        <span class="status-label">청결</span>
+                        <span class="status-value good">깨끗함</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">혼잡도</span>
+                        <span class="status-value normal">보통</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">비품 상태</span>
+                        <span class="status-value good">충분</span>
+                    </div>
+                    <div class="timestamp">12분 전 업데이트</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FAB 버튼 -->
+        <div class="fab" onclick="openReportModal()">
+            <div class="fab-icon">+</div>
+        </div>
+
+        <!-- 하단 탭바 -->
+        <div class="bottom-bar">
+            <div class="bottom-tab active" onclick="switchTab('map')">
+                <div class="tab-icon">🗺️</div>
+                <div>지도</div>
+            </div>
+            <div class="bottom-tab" onclick="switchTab('list')">
+                <div class="tab-icon">📋</div>
+                <div>목록</div>
+            </div>
+            <div class="bottom-tab" onclick="openHistoryModal()">
+                <div class="tab-icon">📊</div>
+                <div>통계</div>
+            </div>
+            <div class="bottom-tab" onclick="openSettingsModal()">
+                <div class="tab-icon">⚙️</div>
+                <div>설정</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 상태 등록 모달 -->
+    <div class="modal" id="reportModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">화장실 상태 등록</div>
+                <button class="close-btn" onclick="closeModal('reportModal')">&times;</button>
+            </div>
+            
+            <div class="status-section">
+                <div class="status-title">화장실 선택</div>
+                <select id="toiletSelect" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ddd;">
+                    <option value="급식실층 남자화장실1">급식실 남자화장실1</option>
+                    <option value="급식실층 남자화장실2">급식실 남자화장실2</option>
+                    <option value="1학년층 남자화장실">1학년층 남자화장실1</option>
+                    <option value="보건실층 남자화장실">1학년층 남자화장실2</option>
+                    <option value="자습실층 남자화장실1">자습실층 남자화장실1</option>
+                    <option value="자습실층 남자화장실2">자습실층 남자화장실2</option>
+                </select>
+            </div>
+            
+            <div class="status-section">
+                <div class="status-title">청결 상태</div>
+                <div class="status-options">
+                    <div class="status-option" data-value="clean" onclick="selectOption(this, 'cleanliness')">깨끗함</div>
+                    <div class="status-option" data-value="normal" onclick="selectOption(this, 'cleanliness')">보통</div>
+                    <div class="status-option" data-value="dirty" onclick="selectOption(this, 'cleanliness')">더러움</div>
+                </div>
+            </div>
+            
+            <div class="status-section">
+                <div class="status-title">혼잡도</div>
+                <div class="status-options">
+                    <div class="status-option" data-value="low" onclick="selectOption(this, 'crowdedness')">한산</div>
+                    <div class="status-option" data-value="medium" onclick="selectOption(this, 'crowdedness')">보통</div>
+                    <div class="status-option" data-value="high" onclick="selectOption(this, 'crowdedness')">혼잡</div>
+                </div>
+            </div>
+            
+            <div class="status-section">
+                <div class="status-title">비품 상태</div>
+                <div class="status-options">
+                    <div class="status-option" data-value="full" onclick="selectOption(this, 'supplies')">충분</div>
+                    <div class="status-option" data-value="medium" onclick="selectOption(this, 'supplies')">부족</div>
+                    <div class="status-option" data-value="empty" onclick="selectOption(this, 'supplies')">없음</div>
+                </div>
+            </div>
+            
+            <button class="submit-btn" onclick="submitReport()">등록하기</button>
+        </div>
+    </div>
+
+    <!-- 화장실 상세 모달 -->
+    <div class="detail-modal" id="detailModal">
+        <div class="modal-content">
+            <div class="detail-header">
+                <div class="detail-title" id="detailTitle">화장실 상세 정보</div>
+                <button class="close-btn" onclick="closeModal('detailModal')">&times;</button>
+            </div>
+            
+            <div class="status-row">
+                <span class="status-label">청결</span>
+                <span class="status-value good" id="detailCleanliness">깨끗함</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">혼잡도</span>
+                <span class="status-value good" id="detailCrowdedness">한산</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">비품 상태</span>
+                <span class="status-value good" id="detailSupplies">충분</span>
+            </div>
+            <div class="timestamp" id="detailTimestamp">5분 전 업데이트</div>
+            
+            <div class="history-title">최근 기록 (10개)</div>
+            <div id="historyList">
+                <div class="history-item">
+                    <div class="status-row">
+                        <span class="status-label">상태</span>
+                        <span class="status-value good">깨끗함 / 한산 / 충분</span>
+                    </div>
+                    <div class="timestamp">2025.04.05 13:45 업데이트</div>
+                </div>
+                <div class="history-item">
+                    <div class="status-row">
+                        <span class="status-label">상태</span>
+                        <span class="status-value normal">보통 / 보통 / 충분</span>
+                    </div>
+                    <div class="timestamp">2025.04.05 12:30 업데이트</div>
+                </div>
+                <div class="history-item">
+                    <div class="status-row">
+                        <span class="status-label">상태</span>
+                        <span class="status-value normal">보통 / 한산 / 부족</span>
+                    </div>
+                    <div class="timestamp">2025.04.05 11:15 업데이트</div>
+                </div>
+            </div>
+            
+            <button class="report-btn" onclick="reportFromDetail()">상태 등록하기</button>
+        </div>
+    </div>
+
+    <script>
+        // Firebase 설정
+        // 주의: 실제 프로젝트에서는 이 API 키를 환경 변수로 관리하는 것이 좋습니다
+        const firebaseConfig = {
+            apiKey: "AIzaSyCJ05SBHSwPm5A7HBVjDqnYENxJ2Zq1Nu0", // 실제 Firebase 콘솔에서 발급받은 키로 변경하세요
+            authDomain: "toiletwep.firebaseapp.com", // 변경 필요
+            databaseURL: "https://toiletwep-default-rtdb.firebaseio.com/", // 변경 필요
+            projectId: "toiletwep", // 변경 필요
+            storageBucket: "toiletwep.firebasestorage.app", // 변경 필요
+            messagingSenderId: "394177013851", // 변경 필요
+            appId: "1:394177013851:web:97b8cf3a1c7946a480377e" // 변경 필요
+        };
+        // 선택된 상태 정보 저장용 객체
+        let selectedStatus = {
+            cleanliness: null,
+            crowdedness: null,
+            supplies: null
+        };
+
+        // 옵션 선택 함수
+        function selectOption(element, category) {
+            // 같은 카테고리의 모든 옵션에서 selected 클래스 제거
+            const options = element.parentElement.querySelectorAll('.status-option');
+            options.forEach(option => option.classList.remove('selected'));
+    
+            // 선택한 옵션에 selected 클래스 추가
+            element.classList.add('selected');
+    
+            // 선택된 값 저장
+            selectedStatus[category] = element.getAttribute('data-value');
+        }
+
+        // 상태 제출 함수
+        function submitReport() {
+            // 선택된 화장실
+            const toiletSelect = document.getElementById('toiletSelect');
+            const toiletName = toiletSelect.value;
+    
+            // 필수 값 확인
+            if (!selectedStatus.cleanliness || !selectedStatus.crowdedness || !selectedStatus.supplies) {
+                alert('모든 상태를 선택해주세요.');
+                return;
+            }
+    
+            // 현재 시간
+            const now = new Date();
+            const timestamp = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} 업데이트`;
+    
+            // 저장할 데이터
+            const data = {
+                toiletName: toiletName,
+                cleanliness: selectedStatus.cleanliness,
+                crowdedness: selectedStatus.crowdedness, 
+                supplies: selectedStatus.supplies,
+                timestamp: timestamp,
+                createdAt: Date.now()
+            };
+    
+            // Firebase에 저장
+            const success = saveToFirebase(data);
+    
+            if (success) {
+                alert('화장실 상태가 등록되었습니다.');
+                closeModal('reportModal');
+        
+                // 선택 상태 초기화
+                selectedStatus = {
+                    cleanliness: null,
+                    crowdedness: null,
+                    supplies: null
+                };
+        
+                // 선택 UI 초기화
+                document.querySelectorAll('.status-option').forEach(option => {
+                    option.classList.remove('selected');
+                });
+        
+                // 화면 업데이트
+                updateAllToilets();
+            }
+        }
+
+        // 글로벌 변수
+        let selectedToilet = null;
+
+        // 탭 전환 함수
+        function switchTab(tabName) {
+            const mapView = document.getElementById('mapView');
+            const listView = document.getElementById('listView');
+            const mapTab = document.querySelector('.tab:nth-child(1)');
+            const listTab = document.querySelector('.tab:nth-child(2)');
+            const mapBottomTab = document.querySelector('.bottom-tab:nth-child(1)');
+            const listBottomTab = document.querySelector('.bottom-tab:nth-child(2)');
+    
+            if (tabName === 'map') {
+                mapView.style.display = 'block';
+                listView.style.display = 'none';
+                mapTab.classList.add('active');
+                listTab.classList.remove('active');
+                mapBottomTab.classList.add('active');
+                listBottomTab.classList.remove('active');
+            } else {
+                mapView.style.display = 'none';
+                listView.style.display = 'block';
+                mapTab.classList.remove('active');
+                listTab.classList.add('active');
+                mapBottomTab.classList.remove('active');
+                listBottomTab.classList.add('active');
+            }
+        }
+
+        // 화장실 상세 모달 열기
+        function openDetailModal(toiletName) {
+            selectedToilet = toiletName;
+            document.getElementById('detailTitle').textContent = toiletName;
+            document.getElementById('detailModal').style.display = 'flex';
+    
+            // 데이터 로드
+            loadToiletDetails(toiletName);
+        }
+
+        // 등록 모달 열기
+        function openReportModal() {
+            document.getElementById('reportModal').style.display = 'flex';
+        }
+
+        // 상세 모달에서 등록 모달 열기
+        function reportFromDetail() {
+            document.getElementById('detailModal').style.display = 'none';
+    
+            // 선택된 화장실 설정
+            const toiletSelect = document.getElementById('toiletSelect');
+            for (let i = 0; i < toiletSelect.options.length; i++) {
+                if (toiletSelect.options[i].value === selectedToilet) {
+                    toiletSelect.selectedIndex = i;
+                    break;
+                }
+            }
+    
+            openReportModal();
+        }
+
+        // 모달 닫기
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        // 더미 데이터 설정 (Firebase 연결 실패 시)
+        function setDummyToiletData(toiletName) {
+            // 청결도, 혼잡도, 비품 상태 기본값
+            document.getElementById('detailTitle').textContent = toiletName;
+            document.getElementById('detailCleanliness').textContent = '정보 없음';
+            document.getElementById('detailCrowdedness').textContent = '정보 없음';
+            document.getElementById('detailSupplies').textContent = '정보 없음';
+            document.getElementById('detailTimestamp').textContent = '정보 없음';
+    
+            // 클래스 초기화
+            document.getElementById('detailCleanliness').className = 'status-value normal';
+            document.getElementById('detailCrowdedness').className = 'status-value normal';
+            document.getElementById('detailSupplies').className = 'status-value normal';
+    
+            // 히스토리 비우기
+            document.getElementById('historyList').innerHTML = '<div class="history-item">기록이 없습니다.</div>';
+        }
+
+        // 값에 따른 클래스 가져오기
+        function getValueClass(value) {
+            if (value === '깨끗함' || value === '한산' || value === '충분') {
+                return 'good';
+            } else if (value === '더러움' || value === '혼잡' || value === '없음') {
+                return 'bad';
+            } else {
+                return 'normal';
+            }
+        }
+
+        // 상태 클래스 설정
+        function setStatusClass(elementId, value) {
+            const element = document.getElementById(elementId);
+            element.className = 'status-value ' + getValueClass(value);
+        }
+
+        // 전체 상태 클래스 가져오기
+        function getStatusClass(cleanliness, crowdedness, supplies) {
+            // 청결도를 기준으로 상태 클래스 결정
+            if (cleanliness === 'clean') {
+                return 'good';
+            } else if (cleanliness === 'dirty') {
+                return 'bad';
+            } else {
+                return 'normal';
+            }
+        }
+
+        // 미구현 모달 (통계, 설정)
+        function openHistoryModal() {
+            alert('통계 기능은 아직 개발 중입니다.');
+        }
+
+        function openSettingsModal() {
+            alert('설정 기능은 아직 개발 중입니다.');
+        }
+
+        // Firebase 초기화 (기존 초기화 함수 대체)
+        function initFirebase() {
+            try {
+                // Firebase가 이미 초기화되었는지 확인
+                if (!firebase.apps.length) {
+                    firebase.initializeApp(firebaseConfig);
+                }
+                return firebase.database();
+            } catch (error) {
+                console.error("Firebase 초기화 오류:", error);
+                alert("데이터베이스 연결에 문제가 발생했습니다. 나중에 다시 시도해주세요.");
+                return null;
+            }
+        }
+
+        // Firebase에 데이터 저장 함수 개선
+        function saveToFirebase(data) {
+            const database = initFirebase();
+            if (!database) return false;
+    
+            try {
+                // 1. toiletReports 컬렉션에 새 리포트 추가 (타임스탬프 키로 정렬 가능하게)
+                const reportsRef = database.ref('toiletReports');
+                const newReportRef = reportsRef.push();
+                newReportRef.set({
+                    ...data,
+                    reportId: newReportRef.key // 참조용 ID 추가
+                });
+        
+                // 2. 특정 화장실별 리포트 기록 (히스토리 조회 성능 향상을 위해)
+                const toiletHistoryRef = database.ref(`toiletHistory/${data.toiletName.replace(/\s/g, '_')}`);
+                toiletHistoryRef.push(data);
+        
+                // 3. 해당 화장실의 최신 상태 업데이트
+                const latestRef = database.ref(`latestStatus/${data.toiletName.replace(/\s/g, '_')}`);
+                latestRef.set(data);
+        
+                return true;
+            } catch (error) {
+                console.error("데이터 저장 오류:", error);
+                alert("상태 등록에 실패했습니다. 네트워크 연결을 확인해주세요.");
+                return false;
+            }
+        }
+
+        // 화장실 최신 상태 로드 (특정 화장실)
+        function loadToiletDetails(toiletName) {
+            const database = initFirebase();
+            if (!database) {
+                // Firebase 연결 실패 시 더미 데이터 대체
+                setDummyToiletData(toiletName);
+                return;
+            }
+    
+            const latestRef = database.ref(`latestStatus/${toiletName.replace(/\s/g, '_')}`);
+            latestRef.once('value')
+                .then((snapshot) => {
+                    const data = snapshot.val();
+            
+                    if (data) {
+                        // Firebase 데이터로 UI 업데이트
+                        updateToiletDetailUI(data);
+                
+                        // 히스토리 로드
+                        loadToiletHistory(toiletName);
+                    } else {
+                        // 데이터가 없을 경우 더미 데이터
+                        setDummyToiletData(toiletName);
+                    }
+                })
+                .catch((error) => {
+                    console.error("데이터 로드 오류:", error);
+                    setDummyToiletData(toiletName);
+                });
+        }
+
+        // 화장실 히스토리 로드
+        function loadToiletHistory(toiletName) {
+            const database = initFirebase();
+            if (!database) return;
+    
+            const historyRef = database.ref(`toiletHistory/${toiletName.replace(/\s/g, '_')}`);
+            // 최근 10개 기록만 가져오기
+            historyRef.orderByChild('createdAt').limitToLast(10).once('value')
+                .then((snapshot) => {
+                    const historyList = document.getElementById('historyList');
+                    historyList.innerHTML = ''; // 기존 내용 초기화
+            
+                    const data = snapshot.val();
+            
+                    if (data) {
+                        // 최신순으로 정렬
+                        const historyItems = Object.keys(data)
+                            .map(key => ({
+                                ...data[key],
+                                key
+                            }))
+                            .sort((a, b) => b.createdAt - a.createdAt);
+                
+                        // 히스토리 항목 추가
+                        historyItems.forEach(item => {
+                            addHistoryItem(historyList, item);
+                        });
+                    } else {
+                        historyList.innerHTML = '<div class="history-item">최근 기록이 없습니다.</div>';
+                    }
+                })
+                .catch((error) => {
+                    console.error("히스토리 로드 오류:", error);
+                    document.getElementById('historyList').innerHTML = 
+                        '<div class="history-item">기록을 불러오는 중 오류가 발생했습니다.</div>';
+                });
+        }
+
+        // 히스토리 항목 추가 함수
+        function addHistoryItem(container, data) {
+            // 청결도, 혼잡도, 비품 텍스트 변환
+            const cleanlinessText = getStatusText('cleanliness', data.cleanliness);
+            const crowdednessText = getStatusText('crowdedness', data.crowdedness);
+            const suppliesText = getStatusText('supplies', data.supplies);
+    
+            // 상태 종합
+            let statusClass = getStatusClass(data.cleanliness, data.crowdedness, data.supplies);
+    
+            const historyHtml = `
+                <div class="history-item">
+                    <div class="status-row">
+                        <span class="status-label">상태</span>
+                        <span class="status-value ${statusClass}">${cleanlinessText} / ${crowdednessText} / ${suppliesText}</span>
+                    </div>
+                    <div class="timestamp">${data.timestamp}</div>
+                </div>
+    `       ;
+    
+            container.innerHTML += historyHtml;
+        }
+
+        // 상태값을 텍스트로 변환
+        function getStatusText(category, value) {
+            if (category === 'cleanliness') {
+                return value === 'clean' ? '깨끗함' : (value === 'dirty' ? '더러움' : '보통');
+            } else if (category === 'crowdedness') {
+                return value === 'low' ? '한산' : (value === 'high' ? '혼잡' : '보통');
+            } else if (category === 'supplies') {
+                return value === 'full' ? '충분' : (value === 'empty' ? '없음' : '부족');
+            }
+            return '정보 없음';
+        }
+
+        // 전체 화장실 상태 업데이트 (지도 및 목록)
+        function updateAllToilets() {
+            const database = initFirebase();
+            if (!database) return;
+    
+            const latestRef = database.ref('latestStatus');
+            latestRef.once('value')
+                .then((snapshot) => {
+                    const data = snapshot.val() || {};
+            
+                    // 모든 화장실 마커 및 카드 업데이트
+                    for (const key in data) {
+                        const toiletName = key.replace(/_/g, ' ');
+                        const toiletData = data[key];
+                
+                        // 마커 상태 업데이트
+                        updateToiletMarker(toiletName, toiletData.cleanliness);
+                
+                        // 목록 카드 업데이트
+                        updateToiletCard(toiletName, toiletData);
+                    }
+                })
+                .catch((error) => {
+                    console.error("전체 데이터 로드 오류:", error);
+                });
+        }
+
+        // 화장실 마커 업데이트
+        function updateToiletMarker(toiletName, cleanlinessStatus) {
+            // 화장실 ID 약식으로 변환
+            let markerId = '';
+    
+            // 급식실층 화장실 패턴 (예: "급식실층 남자화장실1" -> "급1")
+            const cafeteriaMatch = toiletName.match(/급식실층\s*(남자|여자)화장실(\d*)/);
+            if (cafeteriaMatch) {
+                const gender = cafeteriaMatch[1] === '남자' ? '남' : '여';
+                const number = cafeteriaMatch[2] || '';
+                markerId = '급' + number;
+            } 
+            // 학년층 화장실 패턴 (예: "1학년층 남자화장실" -> "1남")
+            else if (toiletName.match(/(\d+)학년층/)) {
+                const gradeMatch = toiletName.match(/(\d+)학년층\s*(남자|여자)/);
+                if (gradeMatch) {
+                    markerId = gradeMatch[1] + (gradeMatch[2] === '남자' ? '남' : '여');
+                }
+            } 
+            // 보건실층 화장실 패턴 (예: "보건실층 남자화장실" -> "보남")
+            else if (toiletName.includes('보건실층')) {
+                const genderMatch = toiletName.match(/(남자|여자)/);
+                if (genderMatch) {
+                    markerId = '보' + (genderMatch[1] === '남자' ? '남' : '여');
+                }
+            } 
+            // 자습실층 화장실 패턴 (예: "자습실층 남자화장실1" -> "자남1")
+            else if (toiletName.includes('자습실층')) {
+                const studyRoomMatch = toiletName.match(/자습실층\s*(남자|여자)화장실(\d*)/);
+                if (studyRoomMatch) {
+                    const gender = studyRoomMatch[1] === '남자' ? '남' : '여';
+                    const number = studyRoomMatch[2] || '';
+                    markerId = '자' + gender + number;
+                }
+            }
+            // 일반 층 패턴 (예: "1층 남자화장실" -> "1남")
+            else {
+                const floorMatch = toiletName.match(/(\d+)층\s*(남자|여자)/);
+                if (floorMatch) {
+                    markerId = floorMatch[1] + (floorMatch[2] === '남자' ? '남' : '여');
+                }
+            }
+    
+            // 일치하는 마커가 없으면 종료
+            if (!markerId) {
+                return;
+            }
+    
+            // 모든 화장실 마커를 찾아서 ID가 일치하는 것을 업데이트
+            const markers = document.querySelectorAll('.toilet-marker');
+            markers.forEach(marker => {
+                if (marker.textContent.trim() === markerId) {
+                    marker.classList.remove('clean', 'normal', 'dirty');
+        
+                    // 청결 상태에 따라 클래스 추가
+                    if (cleanlinessStatus === 'clean') {
+                        marker.classList.add('clean');
+                    } else if (cleanlinessStatus === 'dirty') {
+                        marker.classList.add('dirty');
+                    } else {
+                        marker.classList.add('normal');
+                    }
+                }
+            });
+        }
+
+        // 화장실 상세 UI 업데이트
+        function updateToiletDetailUI(data) {
+            // 청결도, 혼잡도, 비품 텍스트 변환
+            const cleanlinessText = getStatusText('cleanliness', data.cleanliness);
+            const crowdednessText = getStatusText('crowdedness', data.crowdedness);
+            const suppliesText = getStatusText('supplies', data.supplies);
+    
+            // UI 업데이트
+            document.getElementById('detailCleanliness').textContent = cleanlinessText;
+            document.getElementById('detailCrowdedness').textContent = crowdednessText;
+            document.getElementById('detailSupplies').textContent = suppliesText;
+            document.getElementById('detailTimestamp').textContent = getTimeAgo(data.createdAt) + " 업데이트";
+    
+            // 상태 클래스 설정
+            setStatusClass('detailCleanliness', cleanlinessText);
+            setStatusClass('detailCrowdedness', crowdednessText);
+            setStatusClass('detailSupplies', suppliesText);
+        }
+
+        // 화장실 카드 업데이트
+        function updateToiletCard(toiletName, data) {
+            // 해당 이름의 카드 찾기
+            const cards = document.querySelectorAll('.toilet-card');
+            let targetCard = null;
+    
+            cards.forEach(card => {
+                const cardTitle = card.querySelector('.toilet-name');
+                if (cardTitle && cardTitle.textContent === toiletName) {
+                    targetCard = card;
+                }
+            });
+    
+            if (!targetCard) return; // 카드가 없으면 종료
+    
+            // 청결도, 혼잡도, 비품 텍스트 변환
+            const cleanlinessText = getStatusText('cleanliness', data.cleanliness);
+            const crowdednessText = getStatusText('crowdedness', data.crowdedness);
+            const suppliesText = getStatusText('supplies', data.supplies);
+    
+            // 값 및 클래스 업데이트
+            const statusValues = targetCard.querySelectorAll('.status-value');
+            statusValues[0].textContent = cleanlinessText;
+            statusValues[1].textContent = crowdednessText;
+            statusValues[2].textContent = suppliesText;
+    
+            // 클래스 업데이트
+            statusValues[0].className = 'status-value ' + getValueClass(cleanlinessText);
+            statusValues[1].className = 'status-value ' + getValueClass(crowdednessText);
+            statusValues[2].className = 'status-value ' + getValueClass(suppliesText);
+    
+            // 타임스탬프 업데이트
+            targetCard.querySelector('.timestamp').textContent = getTimeAgo(data.createdAt) + " 업데이트";
+        }
+
+        // 시간 포맷팅 (n분 전, n시간 전 등)
+        function getTimeAgo(timestamp) {
+            const now = new Date().getTime();
+            const diff = now - timestamp;
+    
+            // 1분 미만
+            if (diff < 60000) {
+                return "방금 전";
+            }
+            // 1시간 미만
+            else if (diff < 3600000) {
+                return Math.floor(diff / 60000) + "분 전";
+            }
+            // 1일 미만
+            else if (diff < 86400000) {
+                return Math.floor(diff / 3600000) + "시간 전";
+            }
+            // 그 이상
+            else {
+                const date = new Date(timestamp);
+                return `${date.getMonth() + 1}월 ${date.getDate()}일`;
+            }
+        }
+
+        // 앱 초기화 함수 (기존 코드 대체)
+        function initApp() {
+            // Firebase 초기화
+            const database = initFirebase();
+    
+            if (database) {
+                console.log("Firebase 연결 성공");
+        
+                // 전체 화장실 데이터 로드
+                updateAllToilets();
+        
+                // 실시간 데이터 리스너 설정 (선택사항)
+                const latestRef = database.ref('latestStatus');
+                latestRef.on('child_changed', (snapshot) => {
+                    const toiletName = snapshot.key.replace(/_/g, ' ');
+                    const data = snapshot.val();
+            
+                    // UI 업데이트
+                    updateToiletMarker(toiletName, data.cleanliness);
+                    updateToiletCard(toiletName, data);
+            
+                    // 현재 보고 있는 화장실이면 상세 정보도 업데이트
+                    if (selectedToilet === toiletName && document.getElementById('detailModal').style.display === 'flex') {
+                        updateToiletDetailUI(data);
+                        loadToiletHistory(toiletName);
+                    }
+                });
+            } else {
+                console.warn("Firebase 연결 실패, 로컬 데이터 사용");
+            }
+        }
+
+        // 페이지 로드 시 앱 초기화
+        window.onload = initApp;
+    </script>
+</body>
+</html>
