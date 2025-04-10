@@ -1,0 +1,3471 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>왕희TT - Toilet Talk</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Noto Sans KR', sans-serif;
+        }
+
+        body {
+            background-color: #f5f5f5;
+            color: #333;
+            max-width: 414px;
+            margin: 0 auto;
+            height: 100vh;
+            position: relative;
+        }
+
+        .container {
+            background-color: white;
+            height: 100%;
+            position: relative;
+            overflow-y: auto;
+        }
+
+        /* 헤더 스타일 */
+        header {
+            background-color: #4361ee;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        /* 탭 메뉴 */
+        .tabs {
+            display: flex;
+            background-color: #fff;
+            border-bottom: 1px solid #ddd;
+            position: sticky;
+            top: 51px;
+            z-index: 99;
+        }
+
+        .tab {
+            flex: 1;
+            text-align: center;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            border-bottom: 3px solid #4361ee;
+            color: #4361ee;
+            font-weight: bold;
+        }
+
+        /* 메인 콘텐츠 영역 */
+        .content {
+            padding: 15px;
+        }
+
+        /* 지도 뷰 */
+        .map-view {
+            height: calc(100vh - 180px);
+            background-color: #eef2ff;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .map-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        .toilet-marker {
+            position: absolute;
+            min-width: 100px;
+            /* 최소 너비 설정 */
+            padding: 10px;
+            /* 여백 추가 */
+            height: auto;
+            /* 높이 자동 조절 */
+            border-radius: 10px;
+            /* 모서리 둥글게 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 12px;
+            /* 글자 크기 조정 */
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            white-space: nowrap;
+            /* 텍스트 줄바꿈 방지 */
+        }
+
+        /* 마커 호버 효과 */
+        .toilet-marker:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .toilet-marker.clean {
+            background-color: #4ade80;
+        }
+
+        .toilet-marker.normal {
+            background-color: #facc15;
+        }
+
+        .toilet-marker.dirty {
+            background-color: #f87171;
+        }
+
+        /* 목록 뷰 */
+        .list-view {
+            display: none;
+            height: calc(100vh - 180px);
+            overflow-y: auto;
+        }
+
+        .toilet-card {
+            background-color: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .toilet-name {
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        .status-label {
+            color: #666;
+        }
+
+        .status-value {
+            font-weight: 500;
+        }
+
+        .status-value.good {
+            color: #4ade80;
+        }
+
+        .status-value.normal {
+            color: #facc15;
+        }
+
+        .status-value.bad {
+            color: #f87171;
+        }
+
+        .timestamp {
+            font-size: 12px;
+            color: #999;
+            text-align: right;
+            margin-top: 5px;
+        }
+
+        /* 하단 FAB */
+        .fab {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background-color: #4361ee;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s;
+            z-index: 100;
+            cursor: pointer;
+        }
+
+        .fab:active {
+            transform: scale(0.95);
+        }
+
+        .fab-icon {
+            color: white;
+            font-size: 24px;
+        }
+
+        /* 모달 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 370px;
+            padding: 20px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .status-section {
+            margin-bottom: 20px;
+        }
+
+        .status-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .status-options {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 5px;
+        }
+
+        .status-option {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .status-option.selected {
+            border-color: #4361ee;
+            background-color: #eef2ff;
+            color: #4361ee;
+            font-weight: bold;
+        }
+
+        .submit-btn {
+            background-color: #4361ee;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 12px;
+            width: 100%;
+            font-weight: bold;
+            margin-top: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .submit-btn:active {
+            transform: scale(0.98);
+            background-color: #3a56d4;
+        }
+
+        /* 화장실 상세 모달 */
+        .detail-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .detail-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .detail-title {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .history-item {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .history-title {
+            font-weight: bold;
+            margin-top: 10px;
+            margin-bottom: 5px;
+        }
+
+        .report-btn {
+            background-color: #4361ee;
+            color: white;
+            border: none;
+            border-radius: .10px;
+            padding: 12px;
+            width: 100%;
+            font-weight: bold;
+            margin-top: 15px;
+            cursor: pointer;
+        }
+
+        /* 하단 탭바 */
+        .bottom-bar {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            max-width: 414px;
+            background-color: white;
+            display: flex;
+            border-top: 1px solid #eee;
+            padding: 10px 0;
+            z-index: 50;
+        }
+
+        .bottom-tab {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #777;
+            cursor: pointer;
+        }
+
+        .bottom-tab.active {
+            color: #4361ee;
+            font-weight: bold;
+        }
+
+        .tab-icon {
+            font-size: 18px;
+            margin-bottom: 3px;
+        }
+
+        /* 통계 스타일 */
+        .stats-tabs {
+            display: flex;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 15px;
+        }
+
+        .stats-tab {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            cursor: pointer;
+        }
+
+        .stats-tab.active {
+            border-bottom: 2px solid #4361ee;
+            color: #4361ee;
+            font-weight: bold;
+        }
+
+        .stats-content {
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+
+        .ranking-section {
+            margin-bottom: 20px;
+        }
+
+        .ranking-section h3 {
+            font-size: 16px;
+            margin-bottom: 10px;
+            color: #444;
+        }
+
+        .ranking-list {
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            padding: 5px;
+        }
+
+        .ranking-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .ranking-item:last-child {
+            border-bottom: none;
+        }
+
+        .ranking-position {
+            font-weight: bold;
+            min-width: 25px;
+            color: #4361ee;
+        }
+
+        .ranking-name {
+            flex: 1;
+        }
+
+        .ranking-score {
+            text-align: right;
+            font-weight: 500;
+        }
+
+        .ranking-score.good {
+            color: #4ade80;
+        }
+
+        .ranking-score.normal {
+            color: #facc15;
+        }
+
+        .ranking-score.bad {
+            color: #f87171;
+        }
+
+        .loading-indicator {
+            text-align: center;
+            padding: 10px;
+            color: #777;
+            font-style: italic;
+        }
+
+        .trends-info {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .favorites-list {
+            margin-top: 10px;
+        }
+
+        .favorite-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .favorite-name {
+            flex-grow: 1;
+        }
+
+        .remove-favorite {
+            color: #ff4444;
+            background: none;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+
+        .favorite-button {
+            background: none;
+            border: 1px solid #ddd;
+            padding: 5px 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            cursor: pointer;
+        }
+
+        .favorite-button.active {
+            background: #4CAF50;
+            color: white;
+            border-color: #4CAF50;
+        }
+
+        .favorite-info {
+            flex-grow: 1;
+            margin-right: 10px;
+        }
+
+        .favorite-status {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 5px;
+        }
+
+        .status-badge {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .status-badge.good {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .status-badge.normal {
+            background-color: #fff3e0;
+            color: #ef6c00;
+        }
+
+        .status-badge.bad {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+
+        .favorite-timestamp {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .favorite-item {
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .favorite-item:hover {
+            background-color: #f5f5f5;
+        }
+
+        /* 토스트 메시지 스타일 */
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-size: 14px;
+            z-index: 1000;
+            opacity: 0;
+            transition: all 0.3s ease-in-out;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .toilet-marker {
+            /* 기존 스타일 유지 */
+            transition: all 0.3s;
+        }
+
+        .toilet-marker.easter-egg {
+            animation: bounce 0.5s infinite alternate;
+        }
+
+        @keyframes bounce {
+            from {
+                transform: translateY(0);
+            }
+
+            to {
+                transform: translateY(-10px);
+            }
+        }
+
+        /* 설정 섹션 스타일 */
+        .app-info {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .app-info p {
+            margin: 5px 0;
+            color: var(--text-color);
+        }
+
+        .app-version {
+            font-weight: bold;
+        }
+
+        .feedback-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .settings-btn {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: var(--card-bg);
+            color: var(--text-color);
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+        }
+
+        .settings-btn:hover {
+            background: #4361ee;
+            color: white;
+        }
+
+        .btn-icon {
+            margin-right: 10px;
+            font-size: 1.2em;
+        }
+
+        .feedback-form {
+            margin-top: 15px;
+        }
+
+        .feedback-form textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .warning-btn {
+            background-color: #ffebee !important;
+            color: #c62828 !important;
+            border: 1px solid #ffcdd2 !important;
+            margin-top: 20px !important;
+        }
+
+        .warning-btn:hover {
+            background-color: #c62828 !important;
+            color: white !important;
+        }
+
+        .warning-btn .btn-icon {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        /* 공지사항 관련 스타일 */
+        .announcement-form {
+            margin-top: 15px;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--text-color);
+            font-weight: bold;
+        }
+
+        .input-group input,
+        .input-group textarea,
+        .input-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .announcement-list-title {
+            margin: 20px 0 10px 0;
+            font-weight: bold;
+            color: var(--text-color);
+        }
+
+        .announcement-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .announcement-item {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+        }
+
+        .announcement-item:hover {
+            background-color: #f5f5f5;
+        }
+
+        .announcement-item .title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .announcement-item .content {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .announcement-item .timestamp {
+            font-size: 12px;
+            color: #999;
+            margin-top: 5px;
+        }
+
+        .announcement-type {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 12px;
+            margin-right: 5px;
+        }
+
+        .announcement-type.normal {
+            background-color: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .announcement-type.important {
+            background-color: #fff3e0;
+            color: #f57c00;
+        }
+
+        .announcement-type.emergency {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+
+        .announcement-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .announcement-item {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            background-color: white;
+            transition: background-color 0.2s;
+        }
+
+        .announcement-item:last-child {
+            border-bottom: none;
+        }
+
+        .announcement-type {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .announcement-type.normal {
+            background-color: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .announcement-type.important {
+            background-color: #fff3e0;
+            color: #f57c00;
+        }
+
+        .announcement-type.emergency {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+
+        .delete-announcement {
+            background: none;
+            border: none;
+            padding: 4px 8px;
+            cursor: pointer;
+            color: #dc3545;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+
+        .delete-announcement:hover {
+            opacity: 1;
+        }
+
+        .announcement-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .banned-message {
+            text-align: center;
+            padding: 50px 20px;
+            background: #ffebee;
+            border-radius: 10px;
+            margin: 20px;
+        }
+
+        .banned-list {
+            margin-top: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .banned-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .unban-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .device-info {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .device-id {
+            font-family: monospace;
+            color: #1976d2;
+        }
+
+        .copy-btn {
+            background: #4361ee;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .copy-btn:hover {
+            background: #3651d1;
+        }
+
+        .device-list-container {
+            margin-top: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .device-item {
+            background-color: #f8f9fa;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            border: 1px solid #dee2e6;
+        }
+
+        .device-item.current-device {
+            border-color: #4361ee;
+            background-color: #eef2ff;
+        }
+
+        .device-info-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .current-label {
+            margin-left: 8px;
+            color: #4361ee;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .device-details {
+            font-size: 13px;
+            color: #666;
+        }
+
+        .access-logs-container {
+            max-height: 70vh;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+
+        .access-log-item {
+            background-color: #f8f9fa;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            border: 1px solid #dee2e6;
+        }
+
+        .access-log-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .access-log-header .device-id {
+            font-family: monospace;
+            color: #1976d2;
+            font-weight: bold;
+        }
+
+        .access-log-header .total-visits {
+            background-color: #e3f2fd;
+            color: #1976d2;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+
+        .access-log-details {
+            font-size: 13px;
+            color: #666;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <div class="header-title">왕희TT - Toilet Talk</div>
+        </header>
+
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('map')">지도 보기</div>
+            <div class="tab" onclick="switchTab('list')">목록 보기</div>
+        </div>
+
+        <div class="content">
+            <!-- 지도 뷰 -->
+            <div class="map-view" id="mapView">
+                <!-- 화장실 마커들 수정 -->
+                <div class="map-container">
+                    <div class="toilet-marker clean" style="top: 25%; left: 14%;"
+                        onclick="openDetailModal('급식실층 남자화장실1')">급식실층 남자화장실1</div>
+                    <div class="toilet-marker normal" style="top: 25%; left: 54%;"
+                        onclick="openDetailModal('급식실층 남자화장실2')">급식실층 남자화장실2</div>
+                    <div class="toilet-marker dirty" style="top: 50%; left: 15%;"
+                        onclick="openDetailModal('1학년층 남자화장실')">1학년층 남자화장실</div>
+                    <div class="toilet-marker normal" style="top: 50%; left: 55%;"
+                        onclick="openDetailModal('보건실층 남자화장실')">보건실층 남자화장실</div>
+                    <div class="toilet-marker clean" style="top: 75%; left: 14%;"
+                        onclick="openDetailModal('자습실층 남자화장실1')">자습실층 남자화장실1</div>
+                    <div class="toilet-marker clean" style="top: 75%; left: 54%;"
+                        onclick="openDetailModal('자습실층 남자화장실2')">자습실층 남자화장실2</div>
+                </div>
+            </div>
+
+            <!-- 목록 뷰 -->
+            <div class="list-view" id="listView">
+                <!-- 화장실 카드들 -->
+                <div class="toilet-card" onclick="openDetailModal('급식실층 남자화장실1')">
+                    <div class="toilet-name">급식실층 남자화장실1</div>
+                    <div class="status-row">
+                        <span class="status-label">청결</span>
+                        <span class="status-value good">깨끗함</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">혼잡도</span>
+                        <span class="status-value good">한산</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">비품 상태</span>
+                        <span class="status-value good">충분</span>
+                    </div>
+                    <div class="timestamp">5분 전 업데이트</div>
+                </div>
+
+                <div class="toilet-card" onclick="openDetailModal('급식실층 남자화장실2')">
+                    <div class="toilet-name">급식실층 남자화장실2</div>
+                    <div class="status-row">
+                        <span class="status-label">청결</span>
+                        <span class="status-value normal">보통</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">혼잡도</span>
+                        <span class="status-value normal">보통</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">비품 상태</span>
+                        <span class="status-value normal">보통</span>
+                    </div>
+                    <div class="timestamp">10분 전 업데이트</div>
+                </div>
+
+                <div class="toilet-card" onclick="openDetailModal('1학년층 남자화장실')">
+                    <div class="toilet-name">1학년층 남자화장실</div>
+                    <div class="status-row">
+                        <span class="status-label">청결</span>
+                        <span class="status-value bad">더러움</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">혼잡도</span>
+                        <span class="status-value bad">혼잡</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">비품 상태</span>
+                        <span class="status-value bad">없음</span>
+                    </div>
+                    <div class="timestamp">3분 전 업데이트</div>
+                </div>
+
+                <div class="toilet-card" onclick="openDetailModal('보건실층 남자화장실')">
+                    <div class="toilet-name">보건실층 남자화장실</div>
+                    <div class="status-row">
+                        <span class="status-label">청결</span>
+                        <span class="status-value normal">보통</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">혼잡도</span>
+                        <span class="status-value normal">보통</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">비품 상태</span>
+                        <span class="status-value good">충분</span>
+                    </div>
+                    <div class="timestamp">15분 전 업데이트</div>
+                </div>
+
+                <div class="toilet-card" onclick="openDetailModal('자습실층 남자화장실1')">
+                    <div class="toilet-name">자습실층 남자화장실1</div>
+                    <div class="status-row">
+                        <span class="status-label">청결</span>
+                        <span class="status-value good">깨끗함</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">혼잡도</span>
+                        <span class="status-value good">한산</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">비품 상태</span>
+                        <span class="status-value good">충분</span>
+                    </div>
+                    <div class="timestamp">7분 전 업데이트</div>
+                </div>
+
+                <div class="toilet-card" onclick="openDetailModal('자습실층 남자화장실2')">
+                    <div class="toilet-name">자습실층 남자화장실2</div>
+                    <div class="status-row">
+                        <span class="status-label">청결</span>
+                        <span class="status-value good">깨끗함</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">혼잡도</span>
+                        <span class="status-value normal">보통</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">비품 상태</span>
+                        <span class="status-value good">충분</span>
+                    </div>
+                    <div class="timestamp">12분 전 업데이트</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FAB 버튼 -->
+        <div class="fab" onclick="openReportModal()">
+            <div class="fab-icon">+</div>
+        </div>
+
+        <!-- 하단 탭바 -->
+        <div class="bottom-bar">
+            <div class="bottom-tab active" onclick="switchTab('map')">
+                <div class="tab-icon">🗺️</div>
+                <div>지도</div>
+            </div>
+            <div class="bottom-tab" onclick="switchTab('list')">
+                <div class="tab-icon">📋</div>
+                <div>목록</div>
+            </div>
+            <div class="bottom-tab" onclick="openHistoryModal()">
+                <div class="tab-icon">📊</div>
+                <div>통계</div>
+            </div>
+            <!-- 공지사항 탭 추가 -->
+            <div class="bottom-tab" onclick="openUserAnnouncementModal()">
+                <div class="tab-icon">📢</div>
+                <div>공지</div>
+            </div>
+            <div class="bottom-tab" onclick="openSettingsModal()">
+                <div class="tab-icon">⚙️</div>
+                <div>설정</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 유저용 공지사항 모달 추가 -->
+    <div class="modal" id="userAnnouncementModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">공지사항</div>
+                <button class="close-btn" onclick="closeModal('userAnnouncementModal')">&times;</button>
+            </div>
+            <div id="userAnnouncementList" class="announcement-list">
+                <div class="loading-indicator">공지사항을 불러오는 중...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 상태 등록 모달 -->
+    <div class="modal" id="reportModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">화장실 상태 등록</div>
+                <button class="close-btn" onclick="closeModal('reportModal')">&times;</button>
+            </div>
+
+            <div class="status-section">
+                <div class="status-title">화장실 선택</div>
+                <select id="toiletSelect"
+                    style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ddd;">
+                    <option value="급식실층 남자화장실1">급식실 남자화장실1</option>
+                    <option value="급식실층 남자화장실2">급식실 남자화장실2</option>
+                    <option value="1학년층 남자화장실">1학년층 남자화장실1</option>
+                    <option value="보건실층 남자화장실">1학년층 남자화장실2</option>
+                    <option value="자습실층 남자화장실1">자습실층 남자화장실1</option>
+                    <option value="자습실층 남자화장실2">자습실층 남자화장실2</option>
+                </select>
+            </div>
+
+            <div class="status-section">
+                <div class="status-title">청결 상태</div>
+                <div class="status-options">
+                    <div class="status-option" data-value="clean" onclick="selectOption(this, 'cleanliness')">깨끗함</div>
+                    <div class="status-option" data-value="normal" onclick="selectOption(this, 'cleanliness')">보통</div>
+                    <div class="status-option" data-value="dirty" onclick="selectOption(this, 'cleanliness')">더러움</div>
+                </div>
+            </div>
+
+            <div class="status-section">
+                <div class="status-title">혼잡도</div>
+                <div class="status-options">
+                    <div class="status-option" data-value="low" onclick="selectOption(this, 'crowdedness')">한산</div>
+                    <div class="status-option" data-value="medium" onclick="selectOption(this, 'crowdedness')">보통</div>
+                    <div class="status-option" data-value="high" onclick="selectOption(this, 'crowdedness')">혼잡</div>
+                </div>
+            </div>
+
+            <div class="status-section">
+                <div class="status-title">비품 상태</div>
+                <div class="status-options">
+                    <div class="status-option" data-value="full" onclick="selectOption(this, 'supplies')">충분</div>
+                    <div class="status-option" data-value="medium" onclick="selectOption(this, 'supplies')">부족</div>
+                    <div class="status-option" data-value="empty" onclick="selectOption(this, 'supplies')">없음</div>
+                </div>
+            </div>
+
+            <button class="submit-btn" onclick="submitReport()">등록하기</button>
+        </div>
+    </div>
+
+    <!-- 화장실 상세 모달 -->
+    <div class="detail-modal" id="detailModal">
+        <div class="modal-content">
+            <div class="detail-header">
+                <div class="detail-title" id="detailTitle">화장실 상세 정보</div>
+                <button class="close-btn" onclick="closeModal('detailModal')">&times;</button>
+            </div>
+
+            <div class="status-row">
+                <span class="status-label">청결</span>
+                <span class="status-value good" id="detailCleanliness">깨끗함</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">혼잡도</span>
+                <span class="status-value good" id="detailCrowdedness">한산</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">비품 상태</span>
+                <span class="status-value good" id="detailSupplies">충분</span>
+            </div>
+            <div class="timestamp" id="detailTimestamp">5분 전 업데이트</div>
+
+            <div class="history-title">최근 기록 (10개)</div>
+            <div id="historyList">
+                <div class="history-item">
+                    <div class="status-row">
+                        <span class="status-label">상태</span>
+                        <span class="status-value good">깨끗함 / 한산 / 충분</span>
+                    </div>
+                    <div class="timestamp">2025.04.05 13:45 업데이트</div>
+                </div>
+                <div class="history-item">
+                    <div class="status-row">
+                        <span class="status-label">상태</span>
+                        <span class="status-value normal">보통 / 보통 / 충분</span>
+                    </div>
+                    <div class="timestamp">2025.04.05 12:30 업데이트</div>
+                </div>
+                <div class="history-item">
+                    <div class="status-row">
+                        <span class="status-label">상태</span>
+                        <span class="status-value normal">보통 / 한산 / 부족</span>
+                    </div>
+                    <div class="timestamp">2025.04.05 11:15 업데이트</div>
+                </div>
+            </div>
+
+            <button class="report-btn" onclick="reportFromDetail()">상태 등록하기</button>
+        </div>
+    </div>
+
+    <!-- 설정 모달 내용 수정 -->
+    <div class="modal" id="settingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">설정</div>
+                <button class="close-btn" onclick="closeModal('settingsModal')">&times;</button>
+            </div>
+
+            <!-- 즐겨찾기 섹션 -->
+            <div class="settings-section">
+                <h3>즐겨찾기한 화장실</h3>
+                <div id="favoritesList" class="favorites-list">
+                    <div class="loading-indicator">즐겨찾기를 불러오는 중...</div>
+                </div>
+            </div>
+
+            <!-- 정보 및 피드백 섹션 추가 -->
+            <div class="settings-section">
+                <h3>앱 정보</h3>
+                <div class="app-info">
+                    <p class="app-version">버전: 1.0.0</p>
+                    <p class="update-date">최종 업데이트: 2025.04.06</p>
+                    <p class="developer">개발: 대신고등학교 학생회</p>
+                </div>
+                <div class="feedback-buttons">
+                    <button class="settings-btn" onclick="openFeedbackModal()">
+                        <span class="btn-icon">💬</span>
+                        피드백 보내기
+                    </button>
+                    <button class="settings-btn" onclick="showAboutApp()">
+                        <span class="btn-icon">ℹ️</span>
+                        앱 소개
+                    </button>
+                    <button class="settings-btn" onclick="openReportBugModal()">
+                        <span class="btn-icon">🐞</span>
+                        버그 신고
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 피드백 모달 추가 -->
+    <div class="modal" id="feedbackModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">피드백 보내기</div>
+                <button class="close-btn" onclick="closeModal('feedbackModal')">&times;</button>
+            </div>
+            <div class="feedback-form">
+                <textarea id="feedbackText" placeholder="앱 사용 중 느낀 점이나 개선사항을 자유롭게 적어주세요." rows="5"></textarea>
+                <button class="submit-btn" onclick="submitFeedback()">보내기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 공지사항 모달 -->
+    <div class="modal" id="announcementModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">전체 공지하기</div>
+                <button class="close-btn" onclick="closeModal('announcementModal')">&times;</button>
+            </div>
+            <div class="announcement-form">
+                <div class="input-group">
+                    <label>공지 제목</label>
+                    <input type="text" id="announcementTitle" placeholder="공지 제목을 입력하세요">
+                </div>
+                <div class="input-group">
+                    <label>공지 내용</label>
+                    <textarea id="announcementContent" rows="5" placeholder="공지할 내용을 입력하세요"></textarea>
+                </div>
+                <div class="input-group">
+                    <label>공지 유형</label>
+                    <select id="announcementType">
+                        <option value="normal">일반</option>
+                        <option value="important">중요</option>
+                        <option value="emergency">긴급</option>
+                    </select>
+                </div>
+                <button class="submit-btn" onclick="submitAnnouncement()">공지하기</button>
+                <div class="announcement-list-title">최근 공지 목록</div>
+                <div id="announcementList" class="announcement-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 통계 모달 -->
+    <div class="modal" id="statisticsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">화장실 통계</div>
+                <button class="close-btn" onclick="closeModal('statisticsModal')">&times;</button>
+            </div>
+
+            <div class="stats-tabs">
+                <div class="stats-tab active" onclick="switchStatsTab('rankingTab')">인기 랭킹</div>
+                <div class="stats-tab" onclick="switchStatsTab('trendsTab')">이용 추이</div>
+            </div>
+
+            <div id="rankingTab" class="stats-content">
+                <div class="ranking-section">
+                    <h3>가장 깨끗한 화장실</h3>
+                    <div id="cleanlinessRanking" class="ranking-list">
+                        <div class="loading-indicator">데이터를 불러오는 중...</div>
+                    </div>
+                </div>
+
+                <div class="ranking-section">
+                    <h3>가장 한산한 화장실</h3>
+                    <div id="crowdednessRanking" class="ranking-list">
+                        <div class="loading-indicator">데이터를 불러오는 중...</div>
+                    </div>
+                </div>
+
+                <div class="ranking-section">
+                    <h3>비품 상태가 가장 좋은 화장실</h3>
+                    <div id="suppliesRanking" class="ranking-list">
+                        <div class="loading-indicator">데이터를 불러오는 중...</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="trendsTab" class="stats-content" style="display: none;">
+                <div class="trends-info">
+                    <p>이용 추이 데이터는 곧 제공될 예정입니다.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase 설정
+        // 주의: 실제 프로젝트에서는 이 API 키를 환경 변수로 관리하는 것이 좋습니다
+        const firebaseConfig = {
+            apiKey: "AIzaSyCJ05SBHSwPm5A7HBVjDqnYENxJ2Zq1Nu0",
+            authDomain: "toiletwep.firebaseapp.com",
+            projectId: "toiletwep",
+            storageBucket: "toiletwep.firebasestorage.app",
+            messagingSenderId: "394177013851",
+            appId: "1:394177013851:web:97b8cf3a1c7946a480377e",
+            measurementId: "G-VS9QPTW353"
+        };
+        // 선택된 상태 정보 저장용 객체
+        let selectedStatus = {
+            cleanliness: null,
+            crowdedness: null,
+            supplies: null
+        };
+
+        // 옵션 선택 함수
+        function selectOption(element, category) {
+            // 같은 카테고리의 모든 옵션에서 selected 클래스 제거
+            const options = element.parentElement.querySelectorAll('.status-option');
+            options.forEach(option => option.classList.remove('selected'));
+
+            // 선택한 옵션에 selected 클래스 추가
+            element.classList.add('selected');
+
+            // 선택된 값 저장
+            selectedStatus[category] = element.getAttribute('data-value');
+        }
+
+        // 상태 제출 함수
+        function submitReport() {
+            // 선택된 화장실
+            const toiletSelect = document.getElementById('toiletSelect');
+            const toiletName = toiletSelect.value;
+
+            // 필수 값 확인
+            if (!selectedStatus.cleanliness || !selectedStatus.crowdedness || !selectedStatus.supplies) {
+                alert('모든 상태를 선택해주세요.');
+                return;
+            }
+
+            // 현재 시간
+            const now = new Date();
+            const timestamp = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} 업데이트`;
+
+            // 저장할 데이터
+            const data = {
+                toiletName: toiletName,
+                cleanliness: selectedStatus.cleanliness,
+                crowdedness: selectedStatus.crowdedness,
+                supplies: selectedStatus.supplies,
+                timestamp: timestamp,
+                createdAt: Date.now()
+            };
+
+            // Firebase에 저장
+            const success = saveToFirebase(data);
+
+            if (success) {
+                alert('화장실 상태가 등록되었습니다.');
+                closeModal('reportModal');
+
+                // 선택 상태 초기화
+                selectedStatus = {
+                    cleanliness: null,
+                    crowdedness: null,
+                    supplies: null
+                };
+
+                // 선택 UI 초기화
+                document.querySelectorAll('.status-option').forEach(option => {
+                    option.classList.remove('selected');
+                });
+
+                // 화면 업데이트
+                updateAllToilets();
+            }
+        }
+
+        // 글로벌 변수
+        let selectedToilet = null;
+
+        // 탭 전환 함수
+        function switchTab(tabName) {
+            const mapView = document.getElementById('mapView');
+            const listView = document.getElementById('listView');
+            const mapTab = document.querySelector('.tab:nth-child(1)');
+            const listTab = document.querySelector('.tab:nth-child(2)');
+            const mapBottomTab = document.querySelector('.bottom-tab:nth-child(1)');
+            const listBottomTab = document.querySelector('.bottom-tab:nth-child(2)');
+
+            if (tabName === 'map') {
+                mapView.style.display = 'block';
+                listView.style.display = 'none';
+                mapTab.classList.add('active');
+                listTab.classList.remove('active');
+                mapBottomTab.classList.add('active');
+                listBottomTab.classList.remove('active');
+            } else {
+                mapView.style.display = 'none';
+                listView.style.display = 'block';
+                mapTab.classList.remove('active');
+                listTab.classList.add('active');
+                mapBottomTab.classList.remove('active');
+                listBottomTab.classList.add('active');
+            }
+        }
+
+        // 화장실 상세 모달 열기
+        function openDetailModal(toiletName) {
+            selectedToilet = toiletName;
+            document.getElementById('detailTitle').textContent = toiletName;
+            document.getElementById('detailModal').style.display = 'flex';
+
+            // 데이터 로드
+            loadToiletDetails(toiletName);
+        }
+
+        // 등록 모달 열기
+        function openReportModal() {
+            document.getElementById('reportModal').style.display = 'flex';
+        }
+
+        // 상세 모달에서 등록 모달 열기
+        function reportFromDetail() {
+            document.getElementById('detailModal').style.display = 'none';
+
+            // 선택된 화장실 설정
+            const toiletSelect = document.getElementById('toiletSelect');
+            for (let i = 0; i < toiletSelect.options.length; i++) {
+                if (toiletSelect.options[i].value === selectedToilet) {
+                    toiletSelect.selectedIndex = i;
+                    break;
+                }
+            }
+
+            openReportModal();
+        }
+
+        // 모달 닫기
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        // 더미 데이터 설정 (Firebase 연결 실패 시)
+        function setDummyToiletData(toiletName) {
+            // 청결도, 혼잡도, 비품 상태 기본값
+            document.getElementById('detailTitle').textContent = toiletName;
+            document.getElementById('detailCleanliness').textContent = '정보 없음';
+            document.getElementById('detailCrowdedness').textContent = '정보 없음';
+            document.getElementById('detailSupplies').textContent = '정보 없음';
+            document.getElementById('detailTimestamp').textContent = '정보 없음';
+
+            // 클래스 초기화
+            document.getElementById('detailCleanliness').className = 'status-value normal';
+            document.getElementById('detailCrowdedness').className = 'status-value normal';
+            document.getElementById('detailSupplies').className = 'status-value normal';
+
+            // 히스토리 비우기
+            document.getElementById('historyList').innerHTML = '<div class="history-item">기록이 없습니다.</div>';
+        }
+
+        // 값에 따른 클래스 가져오기
+        function getValueClass(value) {
+            if (value === '깨끗함' || value === '한산' || value === '충분') {
+                return 'good';
+            } else if (value === '더러움' || value === '혼잡' || value === '없음') {
+                return 'bad';
+            } else {
+                return 'normal';
+            }
+        }
+
+        // 상태 클래스 설정
+        function setStatusClass(elementId, value) {
+            const element = document.getElementById(elementId);
+            element.className = 'status-value ' + getValueClass(value);
+        }
+
+        // 전체 상태 클래스 가져오기
+        function getStatusClass(cleanliness, crowdedness, supplies) {
+            // 청결도를 기준으로 상태 클래스 결정
+            if (cleanliness === 'clean') {
+                return 'good';
+            } else if (cleanliness === 'dirty') {
+                return 'bad';
+            } else {
+                return 'normal';
+            }
+        }
+
+        // 통계 모달 열기
+        function openHistoryModal() {
+            document.getElementById('statisticsModal').style.display = 'flex';
+            loadToiletRankings();
+        }
+
+        // 통계 탭 전환
+        function switchStatsTab(tabId) {
+            const tabs = document.querySelectorAll('.stats-tab');
+            const contents = document.querySelectorAll('.stats-content');
+
+            // 모든 탭과 콘텐츠를 비활성화
+            tabs.forEach(tab => tab.classList.remove('active'));
+            contents.forEach(content => content.style.display = 'none');
+
+            // 선택한 탭과 콘텐츠 활성화
+            if (tabId === 'rankingTab') {
+                tabs[0].classList.add('active');
+                document.getElementById('rankingTab').style.display = 'block';
+                loadToiletRankings();
+            } else {
+                tabs[1].classList.add('active');
+                document.getElementById('trendsTab').style.display = 'block';
+            }
+        }
+
+        // 화장실 랭킹 데이터 로드
+        function loadToiletRankings() {
+            const database = initFirebase();
+            if (!database) {
+                showRankingError();
+                return;
+            }
+
+            // latestStatus에서 모든 화장실 데이터 가져오기
+            const latestRef = database.ref('latestStatus');
+            latestRef.once('value')
+                .then((snapshot) => {
+                    const data = snapshot.val();
+
+                    if (!data) {
+                        showRankingError('데이터가 없습니다');
+                        return;
+                    }
+
+                    // 각 카테고리별 점수 계산 및 정렬
+                    const toilets = [];
+
+                    for (const key in data) {
+                        const toilet = data[key];
+                        toilet.name = key.replace(/_/g, ' ');
+
+                        // 점수 계산 (3점: 좋음, 2점: 보통, 1점: 나쁨)
+                        toilet.cleanlinessScore = toilet.cleanliness === 'clean' ? 3 : (toilet.cleanliness === 'normal' ? 2 : 1);
+                        toilet.crowdednessScore = toilet.crowdedness === 'low' ? 3 : (toilet.crowdedness === 'medium' ? 2 : 1);
+                        toilet.suppliesScore = toilet.supplies === 'full' ? 3 : (toilet.supplies === 'medium' ? 2 : 1);
+
+                        toilets.push(toilet);
+                    }
+
+                    // 청결도 랭킹 (높은 점수 순)
+                    const cleanlinessRanking = [...toilets].sort((a, b) => b.cleanlinessScore - a.cleanlinessScore);
+                    updateRankingList('cleanlinessRanking', cleanlinessRanking, 'cleanliness');
+
+                    // 한산함 랭킹 (높은 점수 순 - 낮은 혼잡도가 좋음)
+                    const crowdednessRanking = [...toilets].sort((a, b) => b.crowdednessScore - a.crowdednessScore);
+                    updateRankingList('crowdednessRanking', crowdednessRanking, 'crowdedness');
+
+                    // 비품 상태 랭킹 (높은 점수 순)
+                    const suppliesRanking = [...toilets].sort((a, b) => b.suppliesScore - a.suppliesScore);
+                    updateRankingList('suppliesRanking', suppliesRanking, 'supplies');
+                })
+                .catch((error) => {
+                    console.error("랭킹 데이터 로드 오류:", error);
+                    showRankingError('데이터 로드 중 오류가 발생했습니다');
+                });
+        }
+
+        // 랭킹 리스트 업데이트
+        function updateRankingList(containerId, toilets, category) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+
+            if (toilets.length === 0) {
+                container.innerHTML = '<div class="loading-indicator">데이터가 없습니다</div>';
+                return;
+            }
+
+            toilets.forEach((toilet, index) => {
+                // 각 카테고리별 표시 텍스트 및 클래스 결정
+                let valueText = '';
+                let valueClass = '';
+
+                if (category === 'cleanliness') {
+                    valueText = getStatusText('cleanliness', toilet.cleanliness);
+                    valueClass = toilet.cleanlinessScore === 3 ? 'good' : (toilet.cleanlinessScore === 2 ? 'normal' : 'bad');
+                } else if (category === 'crowdedness') {
+                    valueText = getStatusText('crowdedness', toilet.crowdedness);
+                    valueClass = toilet.crowdednessScore === 3 ? 'good' : (toilet.crowdednessScore === 2 ? 'normal' : 'bad');
+                } else if (category === 'supplies') {
+                    valueText = getStatusText('supplies', toilet.supplies);
+                    valueClass = toilet.suppliesScore === 3 ? 'good' : (toilet.suppliesScore === 2 ? 'normal' : 'bad');
+                }
+
+                // 랭킹 아이템 HTML 생성
+                const rankingItemHtml = `
+            <div class="ranking-item" onclick="openDetailModal('${toilet.name}')">
+                <div class="ranking-position">${index + 1}</div>
+                <div class="ranking-name">${toilet.name}</div>
+                <div class="ranking-score ${valueClass}">${valueText}</div>
+            </div>
+        `;
+
+                container.innerHTML += rankingItemHtml;
+            });
+        }
+
+        // 랭킹 오류 표시
+        function showRankingError(message = '데이터를 불러올 수 없습니다') {
+            const containers = ['cleanlinessRanking', 'crowdednessRanking', 'suppliesRanking'];
+            containers.forEach(containerId => {
+                document.getElementById(containerId).innerHTML = `<div class="loading-indicator">${message}</div>`;
+            });
+        }
+
+        // 설정 모델
+        function openSettingsModal() {
+            document.getElementById('settingsModal').style.display = 'flex';
+            loadFavorites();
+        }
+
+        function toggleFavorite(toiletName) {
+            const favorites = getFavorites();
+            const isFavorite = favorites.includes(toiletName);
+
+            if (isFavorite) {
+                // 즐겨찾기 제거
+                const index = favorites.indexOf(toiletName);
+                favorites.splice(index, 1);
+                showToast(`${toiletName}이(가) 즐겨찾기에서 제거되었습니다.`);
+            } else {
+                // 즐겨찾기 추가
+                favorites.push(toiletName);
+                showToast(`${toiletName}이(가) 즐겨찾기에 추가되었습니다.`);
+            }
+
+            // localStorage에 저장
+            localStorage.setItem('favorites', JSON.stringify(favorites));
+
+            // UI 업데이트
+            loadFavorites();
+            updateFavoriteButton(toiletName);
+        }
+
+        function getFavorites() {
+            const favoritesStr = localStorage.getItem('favorites');
+            return favoritesStr ? JSON.parse(favoritesStr) : [];
+        }
+
+        function loadFavorites() {
+            const favoritesList = document.getElementById('favoritesList');
+            const favorites = getFavorites();
+
+            if (favorites.length === 0) {
+                favoritesList.innerHTML = '<div class="favorite-item">즐겨찾기한 화장실이 없습니다.</div>';
+                return;
+            }
+
+            favoritesList.innerHTML = '';
+
+            favorites.forEach(toiletName => {
+                const database = initFirebase();
+                if (!database) return;
+
+                // 화장실 상태 데이터 가져오기
+                database.ref(`latestStatus/${toiletName.replace(/\s/g, '_')}`).once('value')
+                    .then((snapshot) => {
+                        const toiletData = snapshot.val() || {};
+
+                        // 상태 텍스트 변환
+                        const cleanlinessText = getStatusText('cleanliness', toiletData.cleanliness);
+                        const crowdednessText = getStatusText('crowdedness', toiletData.crowdedness);
+                        const suppliesText = getStatusText('supplies', toiletData.supplies);
+
+                        // 상태에 따른 클래스
+                        const cleanlinessClass = getValueClass(cleanlinessText);
+                        const crowdednessClass = getValueClass(crowdednessText);
+                        const suppliesClass = getValueClass(suppliesText);
+
+                        const itemHtml = `
+                            <div class="favorite-item" onclick="openDetailModal('${toiletName}')">
+                                <div class="favorite-info">
+                                    <div class="favorite-name">${toiletName}</div>
+                                    <div class="favorite-status">
+                                        <span class="status-badge ${cleanlinessClass}">청결: ${cleanlinessText}</span>
+                                        <span class="status-badge ${crowdednessClass}">혼잡도: ${crowdednessText}</span>
+                                        <span class="status-badge ${suppliesClass}">비품: ${suppliesText}</span>
+                                    </div>
+                                    ${toiletData.timestamp ?
+                                `<div class="favorite-timestamp">${toiletData.timestamp}</div>` :
+                                '<div class="favorite-timestamp">업데이트 정보 없음</div>'}
+                                </div>
+                                <button class="remove-favorite" onclick="toggleFavorite('${toiletName}'); event.stopPropagation();">제거</button>
+                            </div>
+                        `;
+                        favoritesList.innerHTML += itemHtml;
+                    });
+            });
+        }
+
+        function updateFavoriteButton(toiletName) {
+            const favorites = getFavorites();
+            const isFavorite = favorites.includes(toiletName);
+            const favoriteButton = document.querySelector(`[data-toilet="${toiletName}"]`);
+
+            if (favoriteButton) {
+                favoriteButton.textContent = isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가';
+                favoriteButton.classList.toggle('active', isFavorite);
+            }
+        }
+
+        // 피드백 모달 열기
+        function openFeedbackModal() {
+            closeModal('settingsModal');
+            document.getElementById('feedbackModal').style.display = 'flex';
+            document.getElementById('feedbackText').placeholder =
+                `앱 사용 중 느낀 점이나 개선사항을 자유롭게 적어주세요.`;
+        }
+
+        // 피드백 제출
+        function submitFeedback() {
+            const feedbackText = document.getElementById('feedbackText').value.trim();
+            const deviceId = getDeviceId(); // 기기 ID 가져오기
+
+            if (!feedbackText) {
+                showToast('피드백 내용을 입력해주세요.');
+                return;
+            }
+
+            const database = initFirebase();
+            if (!database) return;
+
+            const feedbackRef = database.ref('feedback');
+            feedbackRef.push({
+                text: feedbackText,
+                deviceId: deviceId, // 기기 ID 추가
+                userAgent: navigator.userAgent, // 브라우저 정보 추가
+                timestamp: Date.now()
+            }).then(() => {
+                showToast('피드백을 보내주셔서 감사합니다! 🙏');
+                document.getElementById('feedbackText').value = '';
+                closeModal('feedbackModal');
+            }).catch(() => {
+                showToast('피드백 전송에 실패했습니다. 다시 시도해주세요.');
+            });
+        }
+
+        // 앱 소개 표시
+        function showAboutApp() {
+            const aboutContent = `
+        🚽 Toilet Talk(왕희TT)
+
+        우리 학교 화장실 상태를 실시간으로 
+        공유하고 확인할 수 있는 서비스입니다.
+
+        - 실시간 화장실 상태 확인
+        - 청결도, 혼잡도, 비품 상태 공유
+        - 즐겨찾기 기능
+        - 통계 및 랭킹 제공
+
+        개발: 대신고등학교 학생회
+        문의: student@daeshin.hs.kr
+    `;
+
+            alert(aboutContent);
+        }
+
+        // 버그 신고 모달 열기
+        function openReportBugModal() {
+            closeModal('settingsModal');
+            document.getElementById('feedbackModal').style.display = 'flex';
+            document.getElementById('feedbackText').placeholder =
+                `발견하신 버그에 대해 자세히 설명해주세요.
+                어떤 상황에서 발생했는지, 어떤 기기를 사용 중이었는지 함께 적어주시면 더욱 도움이 됩니다.`;
+        }
+
+        // 토스트 메시지 표시 함수 추가
+        function showToast(message) {
+            // 기존 토스트가 있다면 제거
+            const existingToast = document.querySelector('.toast');
+            if (existingToast) {
+                existingToast.remove();
+            }
+
+            // 새 토스트 생성
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            // 애니메이션 적용
+            setTimeout(() => toast.classList.add('show'), 100);
+
+            // 3초 후 제거
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function loadFavorites() {
+            const database = initFirebase();
+            if (!database) return;
+
+            const favoritesList = document.getElementById('favoritesList');
+            favoritesList.innerHTML = '<div class="loading-indicator">즐겨찾기를 불러오는 중...</div>';
+
+            const favoritesRef = database.ref('favorites');
+            favoritesRef.orderByChild('timestamp').once('value')
+                .then((snapshot) => {
+                    favoritesList.innerHTML = '';
+                    const data = snapshot.val();
+
+                    if (!data) {
+                        favoritesList.innerHTML = '<div class="favorite-item">즐겨찾기한 화장실이 없습니다.</div>';
+                        return;
+                    }
+
+                    // 최신 상태 데이터 가져오기
+                    const latestRef = database.ref('latestStatus');
+                    latestRef.once('value')
+                        .then((latestSnapshot) => {
+                            const latestData = latestSnapshot.val() || {};
+
+                            Object.keys(data).forEach(key => {
+                                const toilet = data[key];
+                                const toiletStatus = latestData[key] || {};
+
+                                // 상태 텍스트 변환
+                                const cleanlinessText = getStatusText('cleanliness', toiletStatus.cleanliness);
+                                const crowdednessText = getStatusText('crowdedness', toiletStatus.crowdedness);
+                                const suppliesText = getStatusText('supplies', toiletStatus.supplies);
+
+                                // 상태에 따른 클래스 결정
+                                const cleanlinessClass = getValueClass(cleanlinessText);
+                                const crowdednessClass = getValueClass(crowdednessText);
+                                const suppliesClass = getValueClass(suppliesText);
+
+                                const itemHtml = `
+                                    <div class="favorite-item" onclick="openDetailModal('${toilet.name}')">
+                                        <div class="favorite-info">
+                                            <div class="favorite-name">${toilet.name}</div>
+                                            <div class="favorite-status">
+                                                <span class="status-badge ${cleanlinessClass}">청결: ${cleanlinessText}</span>
+                                                <span class="status-badge ${crowdednessClass}">혼잡도: ${crowdednessText}</span>
+                                                <span class="status-badge ${suppliesClass}">비품: ${suppliesText}</span>
+                                            </div>
+                                            ${toiletStatus.timestamp ?
+                                        `<div class="favorite-timestamp">${toiletStatus.timestamp}</div>` :
+                                        '<div class="favorite-timestamp">업데이트 정보 없음</div>'}
+                                        </div>
+                                        <button class="remove-favorite" onclick="toggleFavorite('${toilet.name}'); event.stopPropagation();">제거</button>
+                                    </div>
+                                `;
+                                favoritesList.innerHTML += itemHtml;
+                            });
+                        });
+                })
+                .catch(error => {
+                    console.error("즐겨찾기 로드 오류:", error);
+                    favoritesList.innerHTML = '<div class="favorite-item">즐겨찾기를 불러올 수 없습니다.</div>';
+                });
+        }
+
+        function openUserAnnouncementModal() {
+            document.getElementById('userAnnouncementModal').style.display = 'flex';
+            loadUserAnnouncements();
+        }
+
+        function loadUserAnnouncements() {
+            const database = initFirebase();
+            if (!database) return;
+
+            const announcementList = document.getElementById('userAnnouncementList');
+            const announcementRef = database.ref('announcements');
+
+            // 최근 10개의 공지사항을 가져옴
+            announcementRef.orderByChild('timestamp').limitToLast(10).once('value')
+                .then((snapshot) => {
+                    announcementList.innerHTML = '';
+                    const announcements = [];
+
+                    snapshot.forEach((child) => {
+                        announcements.unshift({
+                            id: child.key,
+                            ...child.val()
+                        });
+                    });
+
+                    if (announcements.length === 0) {
+                        announcementList.innerHTML = '<div class="announcement-item">등록된 공지사항이 없습니다.</div>';
+                        return;
+                    }
+
+                    announcements.forEach(announcement => {
+                        const date = new Date(announcement.timestamp);
+                        const dateStr = `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+
+                        const typeEmoji = {
+                            normal: '📢',
+                            important: '⚠️',
+                            emergency: '🚨'
+                        };
+
+                        announcementList.innerHTML += `
+                            <div class="announcement-item">
+                                <div class="announcement-header">
+                                    <span class="announcement-type ${announcement.type}">
+                                        ${typeEmoji[announcement.type]} ${getAnnouncementTypeText(announcement.type)}
+                                    </span>
+                                    <span class="timestamp">${dateStr}</span>
+                                </div>
+                                <div class="title">${announcement.title}</div>
+                                <div class="content">${announcement.content}</div>
+                            </div>
+                        `;
+                    });
+                })
+                .catch((error) => {
+                    console.error('공지사항 로드 오류:', error);
+                    announcementList.innerHTML = '<div class="announcement-item">공지사항을 불러올 수 없습니다.</div>';
+                });
+        }
+        // 차단된 사용자 관리를 위한 Firebase 구조 추가
+        function initBanSystem() {
+            const database = initFirebase();
+            if (!database) return;
+
+            // 차단된 기기의 UUID 확인
+            const deviceId = getDeviceId();
+            const bannedRef = database.ref('bannedDevices');
+
+            bannedRef.child(deviceId).once('value').then((snapshot) => {
+                if (snapshot.exists()) {
+                    // 차단된 기기인 경우
+                    showBannedMessage();
+                    disableAllFunctions();
+                }
+            });
+        }
+
+        // 기기 고유 ID 생성/가져오기
+        function getDeviceId() {
+            let deviceId = localStorage.getItem('deviceId');
+            if (!deviceId) {
+                deviceId = 'device_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                localStorage.setItem('deviceId', deviceId);
+            }
+            return deviceId;
+        }
+
+        // Firebase 초기화 (기존 초기화 함수 대체)
+        function initFirebase() {
+            try {
+                // Firebase가 이미 초기화되었는지 확인
+                if (!firebase.apps.length) {
+                    firebase.initializeApp(firebaseConfig);
+                }
+                return firebase.database();
+            } catch (error) {
+                console.error("Firebase 초기화 오류:", error);
+                alert("데이터베이스 연결에 문제가 발생했습니다. 나중에 다시 시도해주세요.");
+                return null;
+            }
+        }
+
+        // Firebase에 데이터 저장 함수 개선
+        function saveToFirebase(data) {
+            const database = initFirebase();
+            if (!database) return false;
+
+            try {
+                // 1. toiletReports 컬렉션에 새 리포트 추가 (타임스탬프 키로 정렬 가능하게)
+                const reportsRef = database.ref('toiletReports');
+                const newReportRef = reportsRef.push();
+                newReportRef.set({
+                    ...data,
+                    reportId: newReportRef.key // 참조용 ID 추가
+                });
+
+                // 2. 특정 화장실별 리포트 기록 (히스토리 조회 성능 향상을 위해)
+                const toiletHistoryRef = database.ref(`toiletHistory/${data.toiletName.replace(/\s/g, '_')}`);
+                toiletHistoryRef.push(data);
+
+                // 3. 해당 화장실의 최신 상태 업데이트
+                const latestRef = database.ref(`latestStatus/${data.toiletName.replace(/\s/g, '_')}`);
+                latestRef.set(data);
+
+                return true;
+            } catch (error) {
+                console.error("데이터 저장 오류:", error);
+                alert("상태 등록에 실패했습니다. 네트워크 연결을 확인해주세요.");
+                return false;
+            }
+        }
+
+        // 화장실 최신 상태 로드 (특정 화장실)
+        function loadToiletDetails(toiletName) {
+            const database = initFirebase();
+            if (!database) {
+                // Firebase 연결 실패 시 더미 데이터 대체
+                setDummyToiletData(toiletName);
+                return;
+            }
+
+            const latestRef = database.ref(`latestStatus/${toiletName.replace(/\s/g, '_')}`);
+            latestRef.once('value')
+                .then((snapshot) => {
+                    const data = snapshot.val();
+
+                    if (data) {
+                        // Firebase 데이터로 UI 업데이트
+                        updateToiletDetailUI(data);
+
+                        // 히스토리 로드
+                        loadToiletHistory(toiletName);
+                    } else {
+                        // 데이터가 없을 경우 더미 데이터
+                        setDummyToiletData(toiletName);
+                    }
+                })
+                .catch((error) => {
+                    console.error("데이터 로드 오류:", error);
+                    setDummyToiletData(toiletName);
+                });
+        }
+
+        // 화장실 히스토리 로드
+        function loadToiletHistory(toiletName) {
+            const database = initFirebase();
+            if (!database) return;
+
+            const historyRef = database.ref(`toiletHistory/${toiletName.replace(/\s/g, '_')}`);
+            // 최근 10개 기록만 가져오기
+            historyRef.orderByChild('createdAt').limitToLast(10).once('value')
+                .then((snapshot) => {
+                    const historyList = document.getElementById('historyList');
+                    historyList.innerHTML = ''; // 기존 내용 초기화
+
+                    const data = snapshot.val();
+
+                    if (data) {
+                        // 최신순으로 정렬
+                        const historyItems = Object.keys(data)
+                            .map(key => ({
+                                ...data[key],
+                                key
+                            }))
+                            .sort((a, b) => b.createdAt - a.createdAt);
+
+                        // 히스토리 항목 추가
+                        historyItems.forEach(item => {
+                            addHistoryItem(historyList, item);
+                        });
+                    } else {
+                        historyList.innerHTML = '<div class="history-item">최근 기록이 없습니다.</div>';
+                    }
+                })
+                .catch((error) => {
+                    console.error("히스토리 로드 오류:", error);
+                    document.getElementById('historyList').innerHTML =
+                        '<div class="history-item">기록을 불러오는 중 오류가 발생했습니다.</div>';
+                });
+        }
+
+        // 히스토리 항목 추가 함수
+        function addHistoryItem(container, data) {
+            // 청결도, 혼잡도, 비품 텍스트 변환
+            const cleanlinessText = getStatusText('cleanliness', data.cleanliness);
+            const crowdednessText = getStatusText('crowdedness', data.crowdedness);
+            const suppliesText = getStatusText('supplies', data.supplies);
+
+            // 상태 종합
+            let statusClass = getStatusClass(data.cleanliness, data.crowdedness, data.supplies);
+
+            const historyHtml = `
+                <div class="history-item">
+                    <div class="status-row">
+                        <span class="status-label">상태</span>
+                        <span class="status-value ${statusClass}">${cleanlinessText} / ${crowdednessText} / ${suppliesText}</span>
+                    </div>
+                    <div class="timestamp">${data.timestamp}</div>
+                </div>
+    `       ;
+
+            container.innerHTML += historyHtml;
+        }
+
+        // 상태값을 텍스트로 변환
+        function getStatusText(category, value) {
+            if (category === 'cleanliness') {
+                return value === 'clean' ? '깨끗함' : (value === 'dirty' ? '더러움' : '보통');
+            } else if (category === 'crowdedness') {
+                return value === 'low' ? '한산' : (value === 'high' ? '혼잡' : '보통');
+            } else if (category === 'supplies') {
+                return value === 'full' ? '충분' : (value === 'empty' ? '없음' : '부족');
+            }
+            return '정보 없음';
+        }
+
+        // 전체 화장실 상태 업데이트 (지도 및 목록)
+        function updateAllToilets() {
+            const database = initFirebase();
+            if (!database) return;
+
+            const latestRef = database.ref('latestStatus');
+            latestRef.once('value')
+                .then((snapshot) => {
+                    const data = snapshot.val() || {};
+
+                    // 모든 화장실 마커 및 카드 업데이트
+                    for (const key in data) {
+                        const toiletName = key.replace(/_/g, ' ');
+                        const toiletData = data[key];
+
+                        // 마커 상태 업데이트
+                        updateToiletMarker(toiletName, toiletData.cleanliness);
+
+                        // 목록 카드 업데이트
+                        updateToiletCard(toiletName, toiletData);
+                    }
+                })
+                .catch((error) => {
+                    console.error("전체 데이터 로드 오류:", error);
+                });
+        }
+
+        // 화장실 마커 업데이트
+        function updateToiletMarker(toiletName, cleanlinessStatus) {
+            // 모든 화장실 마커를 찾아서 이름이 일치하는 것을 업데이트
+            const markers = document.querySelectorAll('.toilet-marker');
+            markers.forEach(marker => {
+                if (marker.textContent.trim() === toiletName) {
+                    marker.classList.remove('clean', 'normal', 'dirty');
+
+                    // 청결 상태에 따라 클래스 추가
+                    if (cleanlinessStatus === 'clean') {
+                        marker.classList.add('clean');
+                    } else if (cleanlinessStatus === 'dirty') {
+                        marker.classList.add('dirty');
+                    } else {
+                        marker.classList.add('normal');
+                    }
+                }
+            });
+        }
+
+        // 화장실 상세 UI 업데이트
+        function updateToiletDetailUI(data) {
+            // 청결도, 혼잡도, 비품 텍스트 변환
+            const cleanlinessText = getStatusText('cleanliness', data.cleanliness);
+            const crowdednessText = getStatusText('crowdedness', data.crowdedness);
+            const suppliesText = getStatusText('supplies', data.supplies);
+
+            // UI 업데이트
+            document.getElementById('detailCleanliness').textContent = cleanlinessText;
+            document.getElementById('detailCrowdedness').textContent = crowdednessText;
+            document.getElementById('detailSupplies').textContent = suppliesText;
+            document.getElementById('detailTimestamp').textContent = getTimeAgo(data.createdAt) + " 업데이트";
+
+            // 상태 클래스 설정
+            setStatusClass('detailCleanliness', cleanlinessText);
+            setStatusClass('detailCrowdedness', crowdednessText);
+            setStatusClass('detailSupplies', suppliesText);
+
+            // 즐겨찾기 버튼 추가
+            const detailModal = document.getElementById('detailModal');
+            let favoriteButton = detailModal.querySelector('.favorite-button');
+
+            if (!favoriteButton) {
+                favoriteButton = document.createElement('button');
+                favoriteButton.className = 'favorite-button';
+                favoriteButton.setAttribute('data-toilet', data.toiletName);
+                favoriteButton.onclick = () => toggleFavorite(data.toiletName);
+                detailModal.querySelector('.modal-content').appendChild(favoriteButton);
+            }
+
+            // 즐겨찾기 상태 확인 (localStorage)
+            const favorites = getFavorites();
+            const isFavorite = favorites.includes(data.toiletName);
+            favoriteButton.textContent = isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가';
+            favoriteButton.classList.toggle('active', isFavorite);
+        }
+
+        // 화장실 카드 업데이트
+        function updateToiletCard(toiletName, data) {
+            // 해당 이름의 카드 찾기
+            const cards = document.querySelectorAll('.toilet-card');
+            let targetCard = null;
+
+            cards.forEach(card => {
+                const cardTitle = card.querySelector('.toilet-name');
+                if (cardTitle && cardTitle.textContent === toiletName) {
+                    targetCard = card;
+                }
+            });
+
+            if (!targetCard) return; // 카드가 없으면 종료
+
+            // 청결도, 혼잡도, 비품 텍스트 변환
+            const cleanlinessText = getStatusText('cleanliness', data.cleanliness);
+            const crowdednessText = getStatusText('crowdedness', data.crowdedness);
+            const suppliesText = getStatusText('supplies', data.supplies);
+
+            // 값 및 클래스 업데이트
+            const statusValues = targetCard.querySelectorAll('.status-value');
+            statusValues[0].textContent = cleanlinessText;
+            statusValues[1].textContent = crowdednessText;
+            statusValues[2].textContent = suppliesText;
+
+            // 클래스 업데이트
+            statusValues[0].className = 'status-value ' + getValueClass(cleanlinessText);
+            statusValues[1].className = 'status-value ' + getValueClass(crowdednessText);
+            statusValues[2].className = 'status-value ' + getValueClass(suppliesText);
+
+            // 타임스탬프 업데이트
+            targetCard.querySelector('.timestamp').textContent = getTimeAgo(data.createdAt) + " 업데이트";
+        }
+
+        // 시간 포맷팅 (n분 전, n시간 전 등)
+        function getTimeAgo(timestamp) {
+            const now = new Date().getTime();
+            const diff = now - timestamp;
+
+            // 1분 미만
+            if (diff < 60000) {
+                return "방금 전";
+            }
+            // 1시간 미만
+            else if (diff < 3600000) {
+                return Math.floor(diff / 60000) + "분 전";
+            }
+            // 1일 미만
+            else if (diff < 86400000) {
+                return Math.floor(diff / 3600000) + "시간 전";
+            }
+            // 그 이상
+            else {
+                const date = new Date(timestamp);
+                return `${date.getMonth() + 1}월 ${date.getDate()}일`;
+            }
+        }
+
+        // 24시간이 지난 데이터 삭제 함수
+        function cleanupOldData() {
+            const database = initFirebase();
+            if (!database) return;
+
+            const cutoffTime = Date.now() - (24 * 60 * 60 * 1000); // 24시간 전 타임스탬프
+
+            // 1. toiletReports 정리
+            const reportsRef = database.ref('toiletReports');
+            reportsRef.orderByChild('createdAt').endAt(cutoffTime).once('value')
+                .then((snapshot) => {
+                    const updates = {};
+                    snapshot.forEach(childSnapshot => {
+                        updates[childSnapshot.key] = null; // Firebase에서 null은 해당 경로 삭제를 의미
+                    });
+
+                    if (Object.keys(updates).length > 0) {
+                        reportsRef.update(updates).then(() => {
+                            console.log("오래된 리포트 데이터 삭제 완료");
+                        });
+                    }
+                });
+
+            // 2. toiletHistory 정리 - 각 화장실별로 정리
+            const historyRef = database.ref('toiletHistory');
+            historyRef.once('value')
+                .then((snapshot) => {
+                    snapshot.forEach(toiletSnapshot => {
+                        const toiletKey = toiletSnapshot.key;
+                        const toiletHistoryRef = database.ref(`toiletHistory/${toiletKey}`);
+
+                        toiletHistoryRef.orderByChild('createdAt').endAt(cutoffTime).once('value')
+                            .then((oldDataSnapshot) => {
+                                const updates = {};
+                                oldDataSnapshot.forEach(childSnapshot => {
+                                    updates[childSnapshot.key] = null;
+                                });
+
+                                if (Object.keys(updates).length > 0) {
+                                    toiletHistoryRef.update(updates).then(() => {
+                                        console.log(`${toiletKey} 히스토리 오래된 데이터 삭제 완료`);
+                                    });
+                                }
+                            });
+                    });
+                });
+        }
+
+        // 이스터에그 관련 코드 추가
+        function initEasterEggs() {
+            // 기존 코드 유지
+            let konamiCode = [];
+            const secretCode = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
+
+            document.addEventListener('keydown', (e) => {
+                konamiCode.push(e.key);
+                konamiCode = konamiCode.slice(-10);
+
+                if (konamiCode.join(',') === secretCode.join(',')) {
+                    activateKonamiCode();
+                }
+            });
+
+            // 터치 관련 이스터에그 추가
+            let touchStartY = 0;
+            let touchTaps = 0;
+            let lastTapTime = 0;
+            let shakeCount = 0;
+            let lastShakeTime = 0;
+
+            // 더블탭 이스터에그
+            document.addEventListener('touchstart', (e) => {
+                const currentTime = new Date().getTime();
+                const tapLength = currentTime - lastTapTime;
+
+                if (tapLength < 500 && tapLength > 0) {
+                    touchTaps++;
+                    if (touchTaps >= 5) {
+                        activateRainbowMode();
+                        touchTaps = 0;
+                    }
+                } else {
+                    touchTaps = 1;
+                }
+                lastTapTime = currentTime;
+            });
+
+            // 세로 스와이프 이스터에그
+            document.addEventListener('touchstart', (e) => {
+                touchStartY = e.touches[0].clientY;
+            });
+
+            document.addEventListener('touchend', (e) => {
+                const touchEndY = e.changedTouches[0].clientY;
+                const swipeLength = touchEndY - touchStartY;
+
+                if (Math.abs(swipeLength) > 200) {
+                    if (swipeLength > 0) {
+                        activateGravityMode();
+                    } else {
+                        deactivateGravityMode();
+                    }
+                }
+            });
+
+            // 기기 흔들기 이스터에그
+            if (window.DeviceMotionEvent) {
+                window.addEventListener('devicemotion', (e) => {
+                    const acceleration = e.accelerationIncludingGravity;
+                    if (!acceleration) return;
+
+                    const currentTime = new Date().getTime();
+                    const timeDiff = currentTime - lastShakeTime;
+
+                    if (timeDiff > 100) {
+                        const movement = Math.abs(acceleration.x + acceleration.y + acceleration.z);
+
+                        if (movement > 25) {
+                            shakeCount++;
+                            if (shakeCount >= 3) {
+                                activateShakeMode();
+                                shakeCount = 0;
+                            }
+                            lastShakeTime = currentTime;
+                        }
+                    }
+                });
+            }
+
+            checkSpecialDay();
+        }
+
+        // 새로운 이스터에그 효과 함수들
+        function activateRainbowMode() {
+            const markers = document.querySelectorAll('.toilet-marker');
+            markers.forEach(marker => {
+                marker.style.animation = 'rainbow 2s linear infinite';
+            });
+
+            // CSS에 무지개 애니메이션 추가
+            const style = document.createElement('style');
+            style.textContent = `
+        @keyframes rainbow {
+            0% { background-color: #ff0000; }
+            17% { background-color: #ff8800; }
+            33% { background-color: #ffff00; }
+            50% { background-color: #00ff00; }
+            67% { background-color: #0000ff; }
+            83% { background-color: #4b0082; }
+            100% { background-color: #9400d3; }
+        }
+    `;
+            document.head.appendChild(style);
+
+            showToast('🌈 무지개 모드 활성화!');
+
+            setTimeout(() => {
+                markers.forEach(marker => {
+                    marker.style.animation = '';
+                });
+                document.head.removeChild(style);
+            }, 5000);
+        }
+
+        function activateGravityMode() {
+            const markers = document.querySelectorAll('.toilet-marker');
+            markers.forEach(marker => {
+                marker.style.transition = 'transform 1s ease-in';
+                marker.style.transform = 'translateY(100vh)';
+            });
+
+            showToast('🎢 중력 모드 활성화!');
+
+            setTimeout(() => {
+                markers.forEach(marker => {
+                    marker.style.transition = 'transform 0.5s ease-out';
+                    marker.style.transform = '';
+                });
+            }, 2000);
+        }
+
+        function deactivateGravityMode() {
+            const markers = document.querySelectorAll('.toilet-marker');
+            markers.forEach(marker => {
+                marker.style.transition = 'transform 1s ease-in';
+                marker.style.transform = 'translateY(-100vh)';
+            });
+
+            setTimeout(() => {
+                markers.forEach(marker => {
+                    marker.style.transition = 'transform 0.5s ease-out';
+                    marker.style.transform = '';
+                });
+            }, 2000);
+        }
+
+        function activateShakeMode() {
+            const markers = document.querySelectorAll('.toilet-marker');
+            markers.forEach(marker => {
+                marker.style.animation = 'shake 0.5s linear infinite';
+            });
+
+            // CSS에 흔들기 애니메이션 추가
+            const style = document.createElement('style');
+            style.textContent = `
+            @keyframes shake {
+            0% { transform: translate(0, 0) rotate(0); }
+            25% { transform: translate(5px, 5px) rotate(5deg); }
+            50% { transform: translate(0, 0) rotate(0); }
+            75% { transform: translate(-5px, 5px) rotate(-5deg); }
+            100% { transform: translate(0, 0) rotate(0); }
+        }
+    `;
+            document.head.appendChild(style);
+
+            showToast('🌪️ 흔들흔들 모드 활성화!');
+
+            setTimeout(() => {
+                markers.forEach(marker => {
+                    marker.style.animation = '';
+                });
+                document.head.removeChild(style);
+            }, 3000);
+        }
+
+        function activateKonamiCode() {
+            // 모든 화장실 마커에 회전 애니메이션 적용
+            const markers = document.querySelectorAll('.toilet-marker');
+            markers.forEach(marker => {
+                marker.style.animation = 'spin 1s linear infinite';
+            });
+
+            showToast('🎮 코나미 코드 발동! 특별 효과가 적용되었습니다.');
+
+            // 3초 후 효과 제거
+            setTimeout(() => {
+                markers.forEach(marker => {
+                    marker.style.animation = '';
+                });
+            }, 3000);
+        }
+
+        function checkSpecialDay() {
+            const now = new Date();
+            const month = now.getMonth() + 1;
+            const date = now.getDate();
+
+            // 만우절
+            if (month === 4 && date === 1) {
+                aprilFoolsDay();
+            }
+
+            // 크리스마스
+            if (month === 12 && date === 25) {
+                christmasDay();
+            }
+
+            // 할로윈
+            if (month === 10 && date === 31) {
+                halloween();
+            }
+        }
+
+        function aprilFoolsDay() {
+            const markers = document.querySelectorAll('.toilet-marker');
+            markers.forEach(marker => {
+                marker.textContent = '🤡';
+                marker.style.fontSize = '20px';
+            });
+            showToast('🎭 만우절 기념 특별 모드가 활성화되었습니다!');
+        }
+
+        function christmasDay() {
+            const markers = document.querySelectorAll('.toilet-marker');
+            markers.forEach(marker => {
+                marker.textContent = '🎄';
+                marker.style.fontSize = '20px';
+            });
+            document.querySelector('.header-title').textContent = '🎄 메리 크리스마스! - Toilet Talk';
+            showToast('🎄 크리스마스 기념 특별 모드가 활성화되었습니다!');
+        }
+
+        function halloween() {
+            const markers = document.querySelectorAll('.toilet-marker');
+            markers.forEach(marker => {
+                marker.textContent = '👻';
+                marker.style.fontSize = '20px';
+            });
+            document.querySelector('.header-title').textContent = '👻 해피 할로윈! - Toilet Talk';
+            showToast('👻 할로윈 기념 특별 모드가 활성화되었습니다!');
+        }
+
+        // 개발자 모드 관련 변수
+        let developerModeClicks = 0;
+        let isDeveloperMode = false;
+        let developerClickTimer;
+        const DEVELOPER_PIN = '1225'; // PIN 번호 설정
+
+        // 개발자 모드 토글 함수 수정
+        function toggleDeveloperMode() {
+            const pin = prompt('PIN을 입력하세요.');
+
+            if (pin === null) {
+                return; // 취소 버튼 클릭 시
+            }
+
+            if (pin === DEVELOPER_PIN) {
+                isDeveloperMode = !isDeveloperMode;
+                const appVersion = document.querySelector('.app-version');
+
+                if (isDeveloperMode) {
+                    showToast('👨‍💻 개발자 모드가 활성화되었습니다!');
+                    appVersion.textContent = '버전: 1.0.0-dev';
+                    addDeveloperMenu();
+                } else {
+                    showToast('개발자 모드가 비활성화되었습니다.');
+                    appVersion.textContent = '버전: 1.0.0';
+                    removeDeveloperMenu();
+                }
+
+                localStorage.setItem('developerMode', isDeveloperMode);
+            } else {
+                showToast('❌ 잘못된 PIN 번호입니다.');
+                developerModeClicks = 0; // 클릭 카운트 리셋
+            }
+        }
+
+        function recordDeviceAccess() {
+            const database = initFirebase();
+            if (!database) return;
+
+            const deviceId = getDeviceId();
+            const deviceAccessRef = database.ref('deviceAccess');
+
+            // 현재 시간
+            const currentTime = Date.now();
+
+            // 먼저 기존 기록 확인
+            deviceAccessRef.child(deviceId).once('value')
+                .then((snapshot) => {
+                    const existingData = snapshot.val();
+
+                    // 마지막 접속 시간과 현재 시간의 차이가 5분 이상일 때만 업데이트
+                    if (!existingData || (currentTime - existingData.lastAccess) >= 5 * 60 * 1000) {
+                        const accessInfo = {
+                            deviceId: deviceId,
+                            lastAccess: currentTime,
+                            userAgent: navigator.userAgent,
+                            platform: navigator.platform,
+                            screenResolution: `${window.screen.width}x${window.screen.height}`,
+                            language: navigator.language,
+                            totalVisits: existingData ? (existingData.totalVisits || 0) + 1 : 1,
+                            firstAccess: existingData ? existingData.firstAccess : currentTime
+                        };
+
+                        // 기기 접속 기록 업데이트
+                        deviceAccessRef.child(deviceId).update(accessInfo);
+                    }
+                });
+        }
+
+        // 개발자 메뉴 추가
+        function addDeveloperMenu() {
+            removeDeveloperMenu(); // 기존 메뉴 제거
+
+            const settingsSection = document.querySelector('.settings-section:last-child');
+            const developerSection = document.createElement('div');
+            developerSection.className = 'settings-section developer-section';
+            developerSection.innerHTML = `
+        <h3>👨‍💻 개발자 도구</h3>
+        <div class="device-info">
+            <p>기기 ID: <span class="device-id">${getDeviceId()}</span></p>
+            <button class="copy-btn" onclick="copyDeviceId()">복사</button>
+        </div>
+        <div class="developer-buttons">
+            <button class="settings-btn" onclick="openAnnouncementModal()">
+                <span class="btn-icon">📢</span>
+                전체 공지하기
+            </button>
+            <button class="settings-btn" onclick="showDatabase()">
+                <span class="btn-icon">📊</span>
+                데이터베이스 조회
+            </button>
+            <button class="settings-btn" onclick="showPerformance()">
+                <span class="btn-icon">📈</span>
+                성능 분석
+            </button>
+            <button class="settings-btn" onclick="clearCache()">
+                <span class="btn-icon">🗑️</span>
+                캐시 초기화
+            </button>
+            <button class="settings-btn" onclick="exportData()">
+                <span class="btn-icon">📤</span>
+                데이터 내보내기
+            </button>
+            <button class="settings-btn" onclick="openDeviceListModal()">
+                <span class="btn-icon">📱</span>
+                접속 기기 목록
+            </button>
+            <button class="settings-btn" onclick="openBanManagement()">
+                <span class="btn-icon">🚫</span>
+                차단 관리
+            </button>
+            <button class="settings-btn" onclick="openAccessLogsModal()">
+                <span class="btn-icon">📱</span>
+                접속 기록 보기
+            </button>
+            <button class="settings-btn warning-btn" onclick="deleteAllData()">
+                <span class="btn-icon">⚠️</span>
+                전체 데이터 삭제
+            </button>
+        </div>
+    `;
+            settingsSection.after(developerSection);
+        }
+
+        // 접속 기록 모달
+        function openAccessLogsModal() {
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.style.display = 'flex';
+            modal.id = 'accessLogsModal';
+            modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">기기 접속 기록</div>
+                <button class="close-btn" onclick="closeModal('accessLogsModal')">&times;</button>
+            </div>
+            <div class="access-logs-container">
+                <div class="access-logs" id="accessLogs">
+                    <div class="loading-indicator">접속 기록을 불러오는 중...</div>
+                </div>
+            </div>
+        </div>
+    `;
+            document.body.appendChild(modal);
+            loadAccessLogs();
+        }
+
+        // 접속 기록 불러오기
+        function loadAccessLogs() {
+            const database = initFirebase();
+            if (!database) return;
+
+            const accessLogs = document.getElementById('accessLogs');
+            const deviceAccessRef = database.ref('deviceAccess');
+
+            deviceAccessRef.orderByChild('lastAccess').limitToLast(50).once('value')
+                .then((snapshot) => {
+                    accessLogs.innerHTML = '';
+                    const logs = [];
+
+                    snapshot.forEach((child) => {
+                        logs.unshift({
+                            id: child.key,
+                            ...child.val()
+                        });
+                    });
+
+                    if (logs.length === 0) {
+                        accessLogs.innerHTML = '<div class="no-data">접속 기록이 없습니다.</div>';
+                        return;
+                    }
+
+                    logs.forEach(log => {
+                        const lastAccessDate = new Date(log.lastAccess).toLocaleString();
+                        accessLogs.innerHTML += `
+                    <div class="access-log-item">
+                        <div class="access-log-header">
+                            <span class="device-id">${log.deviceId}</span>
+                            <span class="total-visits">총 방문: ${log.totalVisits || 1}회</span>
+                        </div>
+                        <div class="access-log-details">
+                            <div>마지막 접속: ${lastAccessDate}</div>
+                            <div>플랫폼: ${log.platform}</div>
+                            <div>해상도: ${log.screenResolution}</div>
+                            <div>언어: ${log.language}</div>
+                        </div>
+                    </div>
+                `;
+                    });
+                })
+                .catch((error) => {
+                    console.error('접속 기록 로드 오류:', error);
+                    accessLogs.innerHTML = '<div class="error">접속 기록을 불러올 수 없습니다.</div>';
+                });
+        }
+
+        // 접속 기기 목록 모달
+        function openDeviceListModal() {
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.style.display = 'flex';
+            modal.id = 'deviceListModal';
+            modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">접속 기기 목록</div>
+                <button class="close-btn" onclick="closeModal('deviceListModal')">&times;</button>
+            </div>
+            <div class="device-list-container">
+                <div class="device-list" id="deviceList">
+                    <div class="loading-indicator">기기 목록을 불러오는 중...</div>
+                </div>
+            </div>
+        </div>
+    `;
+            document.body.appendChild(modal);
+            loadConnectedDevices();
+        }
+
+        // 접속 기기 목록 로드
+        function loadConnectedDevices() {
+            const database = initFirebase();
+            if (!database) return;
+
+            const connectedRef = database.ref('.info/connected');
+            const devicesRef = database.ref('connectedDevices');
+
+            // 현재 기기 정보 저장
+            const deviceInfo = {
+                id: getDeviceId(),
+                lastActive: Date.now(),
+                userAgent: navigator.userAgent,
+                platform: navigator.platform
+            };
+
+            // 접속 시 기기 정보 저장
+            connectedRef.on('value', (snap) => {
+                if (snap.val() === true) {
+                    devicesRef.child(deviceInfo.id).set(deviceInfo);
+
+                    // 연결 해제 시 기기 정보 삭제
+                    devicesRef.child(deviceInfo.id).onDisconnect().remove();
+                }
+            });
+
+            // 기기 목록 표시
+            devicesRef.on('value', (snapshot) => {
+                const deviceList = document.getElementById('deviceList');
+                if (!deviceList) return;
+
+                deviceList.innerHTML = '';
+                const devices = snapshot.val() || {};
+
+                Object.entries(devices).forEach(([id, device]) => {
+                    const isCurrentDevice = id === deviceInfo.id;
+                    const lastActiveTime = new Date(device.lastActive).toLocaleString();
+
+                    deviceList.innerHTML += `
+                <div class="device-item ${isCurrentDevice ? 'current-device' : ''}">
+                    <div class="device-info-row">
+                        <span class="device-id">${id}</span>
+                        ${isCurrentDevice ? '<span class="current-label">(현재 기기)</span>' : ''}
+                    </div>
+                    <div class="device-details">
+                        <div>마지막 활동: ${lastActiveTime}</div>
+                        <div>플랫폼: ${device.platform}</div>
+                    </div>
+                </div>
+            `;
+                });
+
+                if (deviceList.children.length === 0) {
+                    deviceList.innerHTML = '<div class="no-data">접속한 기기가 없습니다.</div>';
+                }
+            });
+        }
+
+        // 기기 ID 복사 함수
+        function copyDeviceId() {
+            const deviceId = getDeviceId();
+            navigator.clipboard.writeText(deviceId)
+                .then(() => {
+                    showToast('기기 ID가 복사되었습니다.');
+                })
+                .catch(() => {
+                    showToast('복사에 실패했습니다.');
+                });
+        }
+
+        // 차단 관리 모달
+        function openBanManagement() {
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.style.display = 'flex'; // 모달 표시 스타일 추가
+            modal.id = 'banManagementModal'; // ID 추가
+            modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">차단 관리</div>
+                <button class="close-btn" onclick="closeModal('banManagementModal')">&times;</button>
+            </div>
+            <div class="ban-management">
+                <div class="input-group">
+                    <label>차단할 기기 ID</label>
+                    <input type="text" id="deviceIdInput" placeholder="차단할 기기 ID를 입력하세요">
+                    <button class="submit-btn" onclick="banDevice()">차단하기</button>
+                </div>
+                <div class="banned-list-title">차단된 기기 목록</div>
+                <div id="bannedList" class="banned-list">
+                    <div class="loading-indicator">차단 목록 로딩중...</div>
+                </div>
+            </div>
+        </div>
+    `;
+            document.body.appendChild(modal);
+            loadBannedDevices();
+        }
+
+        // CSS 스타일 추가
+        const style = document.createElement('style');
+        style.textContent = `
+    .ban-management {
+        margin-top: 15px;
+    }
+
+    .banned-list-title {
+        font-weight: bold;
+        margin: 20px 0 10px 0;
+        color: #333;
+    }
+
+    #deviceIdInput {
+        width: 100%;
+        padding: 10px;
+        margin-bottom: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+    }
+
+    .banned-item {
+        background-color: #f8f9fa;
+        padding: 15px;
+        margin-bottom: 10px;
+        border-radius: 5px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .banned-info {
+        flex: 1;
+    }
+
+    .unban-btn {
+        background-color: #dc3545;
+        color: white;
+        border: none;
+        padding: 8px 15px;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+    .unban-btn:hover {
+        background-color: #c82333;
+    }
+`;
+        document.head.appendChild(style);
+
+        // 모달 닫기 함수 수정
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                if (modalId === 'banManagementModal') {
+                    modal.remove(); // 모달 요소 완전히 제거
+                } else {
+                    modal.style.display = 'none';
+                }
+            }
+        }
+
+        // 기기 차단하기
+        function banDevice() {
+            const deviceId = document.getElementById('deviceIdInput').value.trim();
+            if (!deviceId) {
+                showToast('기기 ID를 입력해주세요.');
+                return;
+            }
+
+            const database = initFirebase();
+            if (!database) return;
+
+            const bannedRef = database.ref('bannedDevices');
+            bannedRef.child(deviceId).set({
+                bannedAt: Date.now(),
+                bannedBy: 'admin'
+            }).then(() => {
+                showToast('기기가 차단되었습니다.');
+                loadBannedDevices();
+            });
+        }
+
+        // 차단된 기기 목록 로드
+        function loadBannedDevices() {
+            const database = initFirebase();
+            if (!database) return;
+
+            const bannedList = document.getElementById('bannedList');
+            const bannedRef = database.ref('bannedDevices');
+
+            bannedRef.once('value').then((snapshot) => {
+                bannedList.innerHTML = '';
+                if (!snapshot.exists()) {
+                    bannedList.innerHTML = '<div class="no-data">차단된 기기가 없습니다.</div>';
+                    return;
+                }
+
+                snapshot.forEach((child) => {
+                    const deviceId = child.key;
+                    const banInfo = child.val();
+                    const banDate = new Date(banInfo.bannedAt).toLocaleDateString();
+
+                    bannedList.innerHTML += `
+                <div class="banned-item">
+                    <div class="banned-info">
+                        <div>기기 ID: ${deviceId}</div>
+                        <div>차단일: ${banDate}</div>
+                    </div>
+                    <button class="unban-btn" onclick="unbanDevice('${deviceId}')">차단 해제</button>
+                </div>
+            `;
+                });
+            });
+        }
+
+        // 차단 해제
+        function unbanDevice(deviceId) {
+            if (!confirm('이 기기의 차단을 해제하시겠습니까?')) return;
+
+            const database = initFirebase();
+            if (!database) return;
+
+            const bannedRef = database.ref('bannedDevices');
+            bannedRef.child(deviceId).remove().then(() => {
+                showToast('차단이 해제되었습니다.');
+                loadBannedDevices();
+            });
+        }
+
+        // 차단된 기기 메시지 표시
+        function showBannedMessage() {
+            document.body.innerHTML = `
+        <div class="banned-message">
+            <h1>⚠️ 접근이 차단되었습니다</h1>
+            <p>부적절한 사용으로 인해 이 기기의 접근이 차단되었습니다.</p>
+            <p>문의: student@daeshin.hs.kr</p>
+        </div>
+    `;
+        }
+
+        // 모든 기능 비활성화
+        function disableAllFunctions() {
+            // 모든 클릭 이벤트 무시
+            document.body.style.pointerEvents = 'none';
+            // Firebase 연결 해제
+            const database = initFirebase();
+            if (database) {
+                database.goOffline();
+            }
+        }
+
+        // 개발자 메뉴 제거
+        function removeDeveloperMenu() {
+            const developerSection = document.querySelector('.developer-section');
+            if (developerSection) {
+                developerSection.remove();
+            }
+        }
+
+        // 개발자 기능들
+        function showDatabase() {
+            const database = initFirebase();
+            if (!database) return;
+
+            database.ref().once('value')
+                .then((snapshot) => {
+                    console.log('📊 전체 데이터:', snapshot.val());
+                    showToast('콘솔에서 데이터를 확인하세요 (F12)');
+                });
+        }
+
+        function showPerformance() {
+            const performance = {
+                loadTime: window.performance.timing.loadEventEnd - window.performance.timing.navigationStart,
+                memory: window.performance.memory ?
+                    Math.round(window.performance.memory.usedJSHeapSize / 1024 / 1024) : 'N/A',
+                apiCalls: Math.floor(Math.random() * 100),
+                cacheHits: Math.floor(Math.random() * 1000)
+            };
+
+            alert(`
+        📈 성능 분석
+
+        페이지 로드 시간: ${performance.loadTime}ms
+        메모리 사용량: ${performance.memory}MB
+        API 호출 수: ${performance.apiCalls}
+        캐시 히트: ${performance.cacheHits}
+    `);
+        }
+
+        // 데이터 삭제 함수 추가
+        function deleteAllData() {
+            const confirmText = prompt('⚠️ 위험! 모든 데이터가 영구적으로 삭제됩니다.\n계속하려면 "DELETE"를 입력하세요.');
+
+            if (confirmText === 'DELETE') {
+                const database = initFirebase();
+                if (!database) return;
+
+                const updates = {
+                    'toiletReports': null,
+                    'toiletHistory': null,
+                    'latestStatus': null,
+                    'favorites': null,
+                    'feedback': null
+                };
+
+                database.ref().update(updates)
+                    .then(() => {
+                        showToast('⚠️ 모든 데이터가 삭제되었습니다.');
+                        setTimeout(() => {
+                            location.reload(); // 페이지 새로고침
+                        }, 1500);
+                    })
+                    .catch((error) => {
+                        console.error('데이터 삭제 오류:', error);
+                        showToast('❌ 데이터 삭제 중 오류가 발생했습니다.');
+                    });
+            } else if (confirmText !== null) {
+                showToast('삭제가 취소되었습니다.');
+            }
+        }
+
+        function clearCache() {
+            if (confirm('캐시를 초기화하시겠습니까?')) {
+                localStorage.clear();
+                showToast('🗑️ 캐시가 초기화되었습니다.');
+                setTimeout(() => {
+                    location.reload();
+                }, 1500);
+            }
+        }
+
+        function exportData() {
+            const database = initFirebase();
+            if (!database) return;
+
+            database.ref().once('value')
+                .then((snapshot) => {
+                    const data = {
+                        timestamp: new Date().toISOString(),
+                        data: snapshot.val()
+                    };
+
+                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `toilet-talk-data-${new Date().toISOString().slice(0, 10)}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+
+                    showToast('📤 데이터가 내보내기되었습니다.');
+                });
+        }
+
+        // 기존 openSettingsModal 함수 수정
+        function openSettingsModal() {
+            document.getElementById('settingsModal').style.display = 'flex';
+            loadFavorites();
+
+            // 버전 클릭 이벤트 설정
+            const appVersion = document.querySelector('.app-version');
+            appVersion.style.cursor = 'pointer';
+
+            // 기존 이벤트 리스너 제거
+            appVersion.removeEventListener('click', handleVersionClick);
+            // 새 이벤트 리스너 등록
+            appVersion.addEventListener('click', handleVersionClick);
+        }
+
+        // 버전 클릭 핸들러 함수 분리
+        function handleVersionClick() {
+            developerModeClicks++;
+
+            clearTimeout(developerClickTimer);
+            developerClickTimer = setTimeout(() => {
+                developerModeClicks = 0;
+            }, 3000);
+
+            if (developerModeClicks >= 7) {
+                toggleDeveloperMode();
+                developerModeClicks = 0;
+            }
+        }
+
+        // 공지사항 관련 함수
+        function openAnnouncementModal() {
+            document.getElementById('announcementModal').style.display = 'flex';
+            loadAnnouncements();
+        }
+
+        function submitAnnouncement() {
+            const title = document.getElementById('announcementTitle').value.trim();
+            const content = document.getElementById('announcementContent').value.trim();
+            const type = document.getElementById('announcementType').value;
+
+            if (!title || !content) {
+                showToast('제목과 내용을 모두 입력해주세요.');
+                return;
+            }
+
+            const database = initFirebase();
+            if (!database) return;
+
+            const announcementRef = database.ref('announcements');
+            const newAnnouncement = {
+                title,
+                content,
+                type,
+                timestamp: Date.now(),
+                author: '관리자'
+            };
+
+            announcementRef.push(newAnnouncement)
+                .then(() => {
+                    showToast('📢 공지사항이 등록되었습니다.');
+                    document.getElementById('announcementTitle').value = '';
+                    document.getElementById('announcementContent').value = '';
+                    loadAnnouncements();
+                    broadcastAnnouncement(newAnnouncement);
+                })
+                .catch((error) => {
+                    console.error('공지사항 등록 오류:', error);
+                    showToast('공지사항 등록에 실패했습니다.');
+                });
+        }
+
+        function loadAnnouncements() {
+            const database = initFirebase();
+            if (!database) return;
+
+            const announcementList = document.getElementById('announcementList');
+            announcementList.innerHTML = '<div class="loading-indicator">공지사항을 불러오는 중...</div>';
+
+            const announcementRef = database.ref('announcements');
+            announcementRef.orderByChild('timestamp').limitToLast(5).once('value')
+                .then((snapshot) => {
+                    announcementList.innerHTML = '';
+                    const announcements = [];
+
+                    snapshot.forEach((child) => {
+                        announcements.unshift({
+                            id: child.key,
+                            ...child.val()
+                        });
+                    });
+
+                    if (announcements.length === 0) {
+                        announcementList.innerHTML = '<div class="announcement-item">등록된 공지사항이 없습니다.</div>';
+                        return;
+                    }
+
+                    announcements.forEach(announcement => {
+                        const date = new Date(announcement.timestamp);
+                        const dateStr = `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+
+                        announcementList.innerHTML += `
+                    <div class="announcement-item">
+                        <div class="announcement-header">
+                            <span class="announcement-type ${announcement.type}">${getAnnouncementTypeText(announcement.type)}</span>
+                            <button class="delete-announcement" onclick="deleteAnnouncement('${announcement.id}')">
+                                <span class="btn-icon">🗑️</span>
+                            </button>
+                        </div>
+                        <div class="title">${announcement.title}</div>
+                        <div class="content">${announcement.content}</div>
+                        <div class="timestamp">${dateStr}</div>
+                    </div>
+                `;
+                    });
+                })
+                .catch((error) => {
+                    console.error('공지사항 로드 오류:', error);
+                    announcementList.innerHTML = '<div class="announcement-item">공지사항을 불러올 수 없습니다.</div>';
+                });
+        }
+
+        // 공지사항 삭제 함수 추가
+        function deleteAnnouncement(announcementId) {
+            if (confirm('이 공지사항을 삭제하시겠습니까?')) {
+                const database = initFirebase();
+                if (!database) return;
+
+                const announcementRef = database.ref(`announcements/${announcementId}`);
+
+                announcementRef.remove()
+                    .then(() => {
+                        showToast('공지사항이 삭제되었습니다.');
+                        loadAnnouncements(); // 목록 새로고침
+                    })
+                    .catch((error) => {
+                        console.error('공지사항 삭제 오류:', error);
+                        showToast('공지사항 삭제에 실패했습니다.');
+                    });
+            }
+        }
+
+        function getAnnouncementTypeText(type) {
+            switch (type) {
+                case 'normal': return '일반';
+                case 'important': return '중요';
+                case 'emergency': return '긴급';
+                default: return '일반';
+            }
+        }
+
+        function broadcastAnnouncement(announcement) {
+            // 여기에 실시간 알림 로직 추가
+            const typeEmoji = {
+                normal: '📢',
+                important: '⚠️',
+                emergency: '🚨'
+            };
+
+            showToast(`${typeEmoji[announcement.type]} ${announcement.title}`);
+        }
+
+        // Firebase Realtime Database에 공지사항 리스너 추가
+        function initAnnouncementListener() {
+            const database = initFirebase();
+            if (!database) return;
+
+            const announcementRef = database.ref('announcements');
+            announcementRef.orderByChild('timestamp').limitToLast(1).on('child_added', (snapshot) => {
+                const announcement = snapshot.val();
+                // 새로운 공지사항이 등록되면 알림 표시
+                if (announcement.timestamp > Date.now() - 1000) { // 1초 이내에 등록된 공지만 표시
+                    broadcastAnnouncement(announcement);
+                }
+            });
+        }
+
+        // 앱 초기화 함수 (기존 코드 대체)
+        function initApp() {
+            // Firebase 초기화
+            const database = initFirebase();
+
+            if (database) {
+                console.log("Firebase 연결 성공");
+
+                // 앱 시작 시 오래된 데이터 정리
+                cleanupOldData();
+
+                // 1시간마다 오래된 데이터 정리 (밀리초 단위)
+                setInterval(cleanupOldData, 60 * 60 * 1000);
+
+                // 전체 화장실 데이터 로드
+                updateAllToilets();
+
+                initBanSystem();
+
+                // 기기 접속 기록
+                recordDeviceAccess();
+
+                // 주기적으로 접속 상태 업데이트 (5분마다)
+                setInterval(() => {
+                    recordDeviceAccess();
+                }, 5 * 60 * 1000);
+
+                // 실시간 데이터 리스너 설정 (선택사항)
+                const latestRef = database.ref('latestStatus');
+                latestRef.on('child_changed', (snapshot) => {
+                    const toiletName = snapshot.key.replace(/_/g, ' ');
+                    const data = snapshot.val();
+
+                    // UI 업데이트
+                    updateToiletMarker(toiletName, data.cleanliness);
+                    updateToiletCard(toiletName, data);
+
+                    // 현재 보고 있는 화장실이면 상세 정보도 업데이트
+                    if (selectedToilet === toiletName && document.getElementById('detailModal').style.display === 'flex') {
+                        updateToiletDetailUI(data);
+                        loadToiletHistory(toiletName);
+                    }
+                });
+
+                // 이스터에그 초기화
+                initEasterEggs();
+
+                // 공지사항 리스너 초기화 추가
+                initAnnouncementListener();
+            } else {
+                console.warn("Firebase 연결 실패, 로컬 데이터 사용");
+            }
+
+        }
+
+        // 페이지 로드 시 앱 초기화
+        window.onload = initApp;
+    </script>
+</body>
+
+</html>
